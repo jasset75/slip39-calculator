@@ -1,0 +1,29 @@
+[package]
+name = "slip39-calculator"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "SLIP-39 wordlist encoder/decoder with interactive TUI"
+license = "MIT"
+
+[dependencies]
+# TUI
+ratatui = "0.30"
+crossterm = "0.28"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Error handling
+thiserror = "2.0"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["blocking"] }
+
+[lib]
+name = "slip39_calculator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "slip39-calculator"
+path = "src/main.rs"
