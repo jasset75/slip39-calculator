@@ -19,6 +19,14 @@ pub enum Error {
 /// The complete SLIP-39 wordlist (1024 words)
 pub const WORDLIST: &[&str] = &include!("../const/wordlist_array.txt");
 
+/// SHA256 checksum of the wordlist array file
+/// This ensures the wordlist hasn't been accidentally modified.
+/// If this test fails, either:
+/// 1. The wordlist file was corrupted (restore from git)
+/// 2. You intentionally updated it (update this constant via `shasum -a 256 const/wordlist_array.txt`)
+pub const WORDLIST_SHA256: &str = "5f8d1360496a206dc80ea5a513f6ab1f36982b8f4b3005d0cfb3ba0302eba0ac";
+
+
 /// Encode a SLIP-39 word to its 10-bit binary representation
 ///
 /// # Arguments
@@ -146,5 +154,36 @@ mod tests {
         let binary = encode(word).unwrap();
         let decoded = decode(&binary).unwrap();
         assert_eq!(decoded, word);
+    }
+
+    #[test]
+    fn test_wordlist_checksum() {
+        use sha2::{Sha256, Digest};
+        
+        // Reconstruct the wordlist array file content
+        let mut content = String::from("[\n");
+        for word in WORDLIST.iter() {
+            content.push_str(&format!("\"{}\",\n", word));
+        }
+        content.push_str("]\n");
+        
+        // Calculate SHA256
+        let mut hasher = Sha256::new();
+        hasher.update(content.as_bytes());
+        let result = hasher.finalize();
+        let hash = format!("{:x}", result);
+        
+        assert_eq!(
+            hash, 
+            WORDLIST_SHA256,
+            "Wordlist checksum mismatch!\n\
+             Expected: {}\n\
+             Got:      {}\n\
+             \n\
+             The wordlist file has been modified. If this was intentional, update WORDLIST_SHA256.\n\
+             Otherwise, restore the file from git: git checkout const/wordlist_array.txt",
+            WORDLIST_SHA256,
+            hash
+        );
     }
 }
