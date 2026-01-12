@@ -267,9 +267,15 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
         (None, None, None)
     };
 
+    let base_color = if app.paper_mode {
+        Color::Red
+    } else {
+        Color::Cyan
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow))
+        .border_style(Style::default().fg(base_color).add_modifier(Modifier::BOLD))
         .title(" Memory Grid ");
 
     f.render_widget(block.clone(), area);
@@ -296,55 +302,68 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
     let mut grid_lines = Vec::new();
     grid_lines.push(Line::from(Span::styled(
         top_border,
-        Style::default().fg(Color::Yellow),
+        Style::default().fg(base_color).add_modifier(Modifier::BOLD),
     )));
 
     // Header Row with vertical bars
     let mut row1 = Vec::new();
-    row1.push(Span::styled("│", Style::default().fg(Color::Yellow)));
+    row1.push(Span::styled(
+        "│",
+        Style::default().fg(base_color).add_modifier(Modifier::BOLD),
+    ));
     for val in bit_values.iter() {
         row1.push(Span::styled(
             format!("{:^5}", val),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(base_color).add_modifier(Modifier::BOLD),
         ));
-        row1.push(Span::styled("│", Style::default().fg(Color::Yellow)));
+        row1.push(Span::styled(
+            "│",
+            Style::default().fg(base_color).add_modifier(Modifier::BOLD),
+        ));
     }
     grid_lines.push(Line::from(row1));
 
     grid_lines.push(Line::from(Span::styled(
         middle_border,
-        Style::default().fg(Color::Yellow),
+        Style::default().fg(base_color).add_modifier(Modifier::BOLD),
     )));
 
     // Bit Row
     let mut row2 = Vec::new();
-    row2.push(Span::styled("│", Style::default().fg(Color::Yellow)));
+    row2.push(Span::styled(
+        "│",
+        Style::default().fg(base_color).add_modifier(Modifier::BOLD),
+    ));
     if let Some(b_str) = binary {
         for c in b_str.chars() {
             let s = format!("{:^5}", c);
             if c == '1' {
                 row2.push(Span::styled(
                     s,
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(base_color).add_modifier(Modifier::BOLD),
                 ));
             } else {
                 row2.push(Span::styled(s, Style::default().fg(Color::Gray)));
             }
-            row2.push(Span::styled("│", Style::default().fg(Color::Yellow)));
+            row2.push(Span::styled(
+                "│",
+                Style::default().fg(base_color).add_modifier(Modifier::BOLD),
+            ));
         }
     } else {
         for _ in 0..10 {
             row2.push(Span::styled("  #  ", Style::default().fg(Color::Gray)));
-            row2.push(Span::styled("│", Style::default().fg(Color::Yellow)));
+            row2.push(Span::styled(
+                "│",
+                Style::default().fg(base_color).add_modifier(Modifier::BOLD),
+            ));
         }
     }
     grid_lines.push(Line::from(row2));
 
     grid_lines.push(Line::from(Span::styled(
         bottom_border,
-        Style::default().fg(Color::Yellow),
+        Style::default().fg(base_color).add_modifier(Modifier::BOLD),
     )));
 
     let p_ascii_grid = Paragraph::new(grid_lines).alignment(ratatui::layout::Alignment::Center);
@@ -395,7 +414,11 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
 fn render_input(f: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Cyan))
+        .border_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .title(" Search ");
 
     let prompt = if app.paper_mode {
@@ -405,16 +428,22 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let input_text = format!("{}{}{}", prompt, app.input, "_"); // Cursor
-    let p = Paragraph::new(input_text)
-        .block(block)
-        .style(Style::default().fg(Color::Cyan));
+    let p = Paragraph::new(input_text).block(block).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
     f.render_widget(p, area);
 
     let help_text =
         "Esc: Exit | Enter: Select | \u{2190}\u{2192}: Suggest | \u{2191}\u{2193}: History";
     let help_p = Paragraph::new(help_text)
         .alignment(ratatui::layout::Alignment::Right)
-        .style(Style::default().fg(Color::Cyan));
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
 
     // Render help text on the bottom border of the input block
     let help_rect = Rect::new(area.x + 1, area.y + 2, area.width - 2, 1);
