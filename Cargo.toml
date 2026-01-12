@@ -26,5 +26,5 @@ name = "slip39_calculator"
 path = "src/lib.rs"
 
 [[bin]]
-name = "slip39-calculator"
+name = "slip39c"
 path = "src/main.rs"
