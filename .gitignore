@@ -9,6 +9,9 @@ Cargo.lock
 *.swo
 *~
 
+# Environment
+.envrc
+
 # OS
 .DS_Store
 Thumbs.db

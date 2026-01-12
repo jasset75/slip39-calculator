@@ -1,0 +1,4 @@
+# direnv configuration for slip39-calculator
+# Copy this file to .envrc and run 'direnv allow' to activate
+
+use mise
