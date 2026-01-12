@@ -396,7 +396,13 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
 fn render_input(f: &mut Frame, app: &App, area: Rect) {
     let block = Block::default().borders(Borders::ALL).title(" Search ");
 
-    let input_text = format!("> {}{}", app.input, "_"); // Cursor
+    let prompt = if app.paper_mode {
+        "Word > ".to_string()
+    } else {
+        format!("Word #{} > ", app.saved_words.len() + 1)
+    };
+
+    let input_text = format!("{}{}{}", prompt, app.input, "_"); // Cursor
     let p = Paragraph::new(input_text)
         .block(block)
         .style(Style::default().fg(Color::White));
