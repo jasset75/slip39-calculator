@@ -14,7 +14,7 @@ A Rust library and interactive TUI for encoding/decoding [SLIP-39](https://githu
 
 ### Prerequisites
 
-- Rust 1.88.0 or later
+- Rust 1.92.0 or later
 - [mise](https://mise.jdx.dev/) (recommended for version management)
 
 ### Building from Source
@@ -24,7 +24,7 @@ A Rust library and interactive TUI for encoding/decoding [SLIP-39](https://githu
 git clone https://github.com/yourusername/slip39-calculator.git
 cd slip39-calculator
 
-# Install Rust 1.88.0 with mise
+# Install Rust 1.92.0 with mise
 mise install
 
 # Build the project
@@ -65,23 +65,49 @@ let decoded = decode(&binary).unwrap();
 assert_eq!(decoded, word);
 ```
 
-### As a CLI *(In Development)*
+### As a CLI
+
+#### Installation
+
+Install the binary locally:
 
 ```bash
-# Encode a word
-slip39-calculator --cli encode academic
+cargo install --path .
+```
+
+This will install the `slip39c` command to `~/.cargo/bin/`.
+
+#### Usage
+
+The CLI provides four human-readable subcommands for encoding and decoding operations:
+
+```bash
+# Encode a word to binary
+slip39c encode-word academic
 # Output: 0000000000
 
-# Decode binary
-slip39-calculator --cli decode 0000000000
+# Decode binary to word
+slip39c decode-bits 0000000001
+# Output: acid
+
+# Get the index of a word (0-1023)
+slip39c word-to-index zero
+# Output: 1023
+
+# Get the word at a specific index
+slip39c index-to-word 0
 # Output: academic
+
+# View help
+slip39c --help
+slip39c encode-word --help
 ```
 
 ### Interactive TUI *(Coming Soon)*
 
 ```bash
 # Launch interactive mode
-slip39-calculator
+slip39c
 
 # Features:
 # - Incremental search with horizontal carousel
@@ -119,20 +145,51 @@ mise exec -- cargo test -- --ignored
 
 ## Development
 
-This project uses [mise](https://mise.jdx.dev/) for Rust version management:
+This project uses [mise](https://mise.jdx.dev/) for Rust version management.
+
+### Setup
+
+#### Option 1: Using direnv (Recommended)
+
+If you have [direnv](https://direnv.net/) installed:
+
+```bash
+# Copy the example configuration
+cp .envrc.example .envrc
+
+# Allow direnv to load the environment
+direnv allow
+```
+
+Now `cargo` commands will automatically use the project's Rust version.
+
+#### Option 2: Using mise directly
 
 ```bash
 # Install dependencies
 mise install
 
-# Run with mise
+# Run commands with mise exec
 mise exec -- cargo run
-
-# Format code
 mise exec -- cargo fmt
+mise exec -- cargo clippy
+```
+
+### Common Development Tasks
+
+```bash
+# Format code
+cargo fmt
 
 # Lint
-mise exec -- cargo clippy
+cargo clippy
+
+# Run the application
+cargo run -- encode-word academic
+
+# Install locally for testing
+cargo install --path .
+slip39c --help
 ```
 
 ## Project Structure
@@ -141,13 +198,14 @@ mise exec -- cargo clippy
 slip39-calculator/
 ├── src/
 │   ├── lib.rs          # Core encode/decode library
-│   └── main.rs         # CLI/TUI binary
+│   └── main.rs         # CLI/TUI binary (slip39c)
 ├── const/
 │   └── wordlist.txt    # Official SLIP-39 wordlist (commit 1524583)
 ├── tests/
 │   └── integration_test.rs # Integration tests
-├── Cargo.toml
-├── .mise.toml          # Rust version config
+├── Cargo.toml          # Package manifest
+├── .mise.toml          # Rust version config (1.92)
+├── .envrc.example      # direnv configuration template
 └── README.md
 ```
 
