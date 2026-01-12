@@ -65,11 +65,14 @@ fn main() {
 
         Commands::DecodeBits { binary } => decode(&binary).map_err(|e| format!("{}", e)),
 
-        Commands::WordToIndex { word } => wordlist()
-            .iter()
-            .position(|&w| w == word)
-            .map(|index| index.to_string())
-            .ok_or_else(|| format!("Word '{}' not found in SLIP-39 wordlist", word)),
+        Commands::WordToIndex { word } => {
+            let normalized = word.trim().to_lowercase();
+            wordlist()
+                .iter()
+                .position(|&w| w == normalized)
+                .map(|index| index.to_string())
+                .ok_or_else(|| format!("Word '{}' not found in SLIP-39 wordlist", word))
+        }
 
         Commands::IndexToWord { index } => {
             if index > 1023 {

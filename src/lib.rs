@@ -62,9 +62,10 @@ pub const WORDLIST_SHA256: &str =
 /// assert_eq!(binary, "0000000001");
 /// ```
 pub fn encode(word: &str) -> Result<String, Error> {
+    let normalized = word.trim().to_lowercase();
     wordlist()
         .iter()
-        .position(|&w| w == word)
+        .position(|&w| w == normalized)
         .map(|index| format!("{:010b}", index))
         .ok_or_else(|| Error::WordNotFound(word.to_string()))
 }
