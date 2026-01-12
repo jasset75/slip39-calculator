@@ -399,9 +399,9 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
         .title(" Search ");
 
     let prompt = if app.paper_mode {
-        "Word > ".to_string()
+        "Word/> ".to_string()
     } else {
-        format!("Word #{} > ", app.saved_words.len() + 1)
+        format!("Word #{}/> ", app.saved_words.len() + 1)
     };
 
     let input_text = format!("{}{}{}", prompt, app.input, "_"); // Cursor
