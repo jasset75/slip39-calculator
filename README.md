@@ -7,8 +7,9 @@ A Rust library and interactive TUI for encoding/decoding [SLIP-39](https://githu
 - 🔐 **Complete SLIP-39 Wordlist**: All 1024 words from the official specification
 - 🧪 **Thoroughly Tested**: 16 tests including verification against official wordlist
 - 📚 **Library + Binary**: Use as a library or standalone CLI
-- 🎨 **Interactive TUI**: Beautiful terminal interface with ratatui *(coming soon)*
+- 🎨 **Interactive TUI**: Beautiful terminal interface with ratatui
 - 🦀 **Idiomatic Rust**: Modern Rust 2021 edition with comprehensive error handling
+- 🛡️ **Security-First**: Designed with ephemeral sessions and memory safety in mind
 
 ## Installation
 
@@ -36,50 +37,47 @@ mise exec -- cargo test
 
 ## Usage
 
-### As a Library
+### Interactive TUI (Default)
 
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-slip39-calculator = "0.1.0"
-```
-
-Example:
-
-```rust
-use slip39_calculator::{encode, decode};
-
-// Encode a word to 10-bit binary
-let binary = encode("academic").unwrap();
-assert_eq!(binary, "0000000000");
-
-// Decode binary to word
-let word = decode("0000000001").unwrap();
-assert_eq!(word, "acid");
-
-// Round-trip
-let word = "zero";
-let binary = encode(word).unwrap();
-let decoded = decode(&binary).unwrap();
-assert_eq!(decoded, word);
-```
-
-### As a CLI
-
-#### Installation
-
-Install the binary locally:
+Simply run the application without arguments to launch the interactive Terminal User Interface:
 
 ```bash
-cargo install --path .
+slip39c
 ```
 
-This will install the `slip39c` command to `~/.cargo/bin/`.
+#### TUI Features
 
-#### Usage
+- **Incremental Search**: Filter 1024 words instantly as you type.
+- **Carousel Navigation**: Browse suggestion candidates horizontally with `Left`/`Right`.
+- **Memory Grid**: Visual representation of the 10-bit binary value for the selected word (Cyan = 1, Gray = 0).
+- **History**: Keep track of up to 20 selected words.
+- **Visual Feedback**:
+  - **Normal Mode**: Cyan (Blue) theme.
+  - **Paper Mode**: Red theme (warning: no history).
 
-The CLI provides four human-readable subcommands for encoding and decoding operations:
+#### Controls
+
+| Key | Action |
+| --- | --- |
+| `Type` | Filter suggestions |
+| `Enter` | Select current suggestion |
+| `←` / `→` | Navigate suggestions carousel |
+| `↑` / `↓` | Navigate saved words history |
+| `Esc` | Exit application |
+
+### Security Features
+
+The tool is designed to be safe for use in ephemeral environments (e.g., Tails OS, air-gapped machines):
+
+1.  **No Disk Writes**: The application **never** writes to the filesystem. No logs, no cache, no history files.
+2.  **RAM Only**: All state (selected words, input) exists only in process memory (`Vec<String>`).
+3.  **Ephemeral Session**:
+    - Memory is released immediately upon exit (`Esc`).
+    - **Paper Mode** (`--paper`): Explicitly clears the internal buffer before adding a new word, ensuring **zero history retention** even in RAM during the session. Useful for transcribing words one by one to physical paper.
+4.  **Terminal Hygiene**: Uses Alternate Screen buffers to ensure no sensitive words remain in your terminal's scrollback history after exit.
+
+### CLI Mode (Scripting)
+The CLI provides subcommands for single-shot operations:
 
 ```bash
 # Encode a word to binary
@@ -100,21 +98,6 @@ slip39c index-to-word 0
 
 # View help
 slip39c --help
-slip39c encode-word --help
-```
-
-### Interactive TUI *(Coming Soon)*
-
-```bash
-# Launch interactive mode
-slip39c
-
-# Features:
-# - Incremental search with horizontal carousel
-# - Single-word grid display (memory-style)
-# - Vertical navigation between saved words
-# - Binary visualization with bit indices (512, 256, 128...)
-# - Color-coded: cyan for active bits, yellow for grid
 ```
 
 ## SLIP-39 Wordlist
