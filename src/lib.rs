@@ -10,10 +10,10 @@ use std::sync::OnceLock;
 pub enum Error {
     #[error("Word '{0}' not found in SLIP-39 wordlist")]
     WordNotFound(String),
-    
+
     #[error("Invalid binary string: {0}")]
     InvalidBinary(String),
-    
+
     #[error("Binary must be exactly 10 bits, got {0} bits")]
     InvalidBinaryLength(usize),
 }
@@ -42,8 +42,8 @@ pub fn wordlist() -> &'static [&'static str] {
 /// If this test fails, either:
 /// 1. The wordlist file was corrupted (restore from git)
 /// 2. You intentionally updated it (update this constant via `shasum -a 256 const/wordlist.txt`)
-pub const WORDLIST_SHA256: &str = "bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3";
-
+pub const WORDLIST_SHA256: &str =
+    "bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3";
 
 /// Encode a SLIP-39 word to its 10-bit binary representation
 ///
@@ -57,7 +57,7 @@ pub const WORDLIST_SHA256: &str = "bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d
 /// # Example
 /// ```
 /// use slip39_calculator::encode;
-/// 
+///
 /// let binary = encode("acid").unwrap();
 /// assert_eq!(binary, "0000000001");
 /// ```
@@ -81,7 +81,7 @@ pub fn encode(word: &str) -> Result<String, Error> {
 /// # Example
 /// ```
 /// use slip39_calculator::decode;
-/// 
+///
 /// let word = decode("0000000001").unwrap();
 /// assert_eq!(word, "acid");
 /// ```
@@ -90,25 +90,25 @@ pub fn decode(binary: &str) -> Result<String, Error> {
     if binary.len() != 10 {
         return Err(Error::InvalidBinaryLength(binary.len()));
     }
-    
+
     // Validate characters
     if !binary.chars().all(|c| c == '0' || c == '1') {
         return Err(Error::InvalidBinary(
-            "Binary string must only contain '0' and '1'".to_string()
+            "Binary string must only contain '0' and '1'".to_string(),
         ));
     }
-    
+
     // Parse binary to index
-    let index = usize::from_str_radix(binary, 2)
-        .map_err(|e| Error::InvalidBinary(e.to_string()))?;
-    
+    let index =
+        usize::from_str_radix(binary, 2).map_err(|e| Error::InvalidBinary(e.to_string()))?;
+
     // Get word from wordlist
     wordlist()
         .get(index)
         .map(|&w| w.to_string())
-        .ok_or_else(|| Error::InvalidBinary(
-            format!("Index {} out of wordlist range (0-1023)", index)
-        ))
+        .ok_or_else(|| {
+            Error::InvalidBinary(format!("Index {} out of wordlist range (0-1023)", index))
+        })
 }
 
 #[cfg(test)]
@@ -176,22 +176,20 @@ mod tests {
 
     #[test]
     fn test_wordlist_checksum() {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         use std::fs;
-        
+
         // Read the official wordlist.txt file
-        let content = fs::read("const/wordlist.txt")
-            .expect("Failed to read const/wordlist.txt");
-        
+        let content = fs::read("const/wordlist.txt").expect("Failed to read const/wordlist.txt");
+
         // Calculate SHA256
         let mut hasher = Sha256::new();
         hasher.update(&content);
         let result = hasher.finalize();
         let hash = format!("{:x}", result);
-        
+
         assert_eq!(
-            hash, 
-            WORDLIST_SHA256,
+            hash, WORDLIST_SHA256,
             "Wordlist checksum mismatch!\n\
              Expected: {}\n\
              Got:      {}\n\
@@ -202,8 +200,7 @@ mod tests {
              \n\
              If this was intentional, update WORDLIST_SHA256.\n\
              Otherwise, restore the file from git: git checkout const/wordlist.txt",
-            WORDLIST_SHA256,
-            hash
+            WORDLIST_SHA256, hash
         );
     }
 
@@ -211,8 +208,12 @@ mod tests {
     fn test_wordlist_initialization() {
         // Verify wordlist initializes correctly
         let words = wordlist();
-        assert_eq!(words.len(), 1024, "SLIP-39 wordlist must have exactly 1024 words");
-        
+        assert_eq!(
+            words.len(),
+            1024,
+            "SLIP-39 wordlist must have exactly 1024 words"
+        );
+
         // Verify first and last words
         assert_eq!(words[0], "academic");
         assert_eq!(words[1023], "zero");
