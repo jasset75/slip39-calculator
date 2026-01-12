@@ -77,6 +77,14 @@ The tool is designed to be safe for use in ephemeral environments (e.g., Tails O
 4.  **Terminal Hygiene**: Uses Alternate Screen buffers to ensure no sensitive words remain in your terminal's scrollback history after exit.
 
 ### CLI Mode (Scripting)
+
+> [!WARNING]
+> **Security Notice**: Using the CLI with sensitive arguments (e.g., `slip39c encode-word <secret>`) involves risks:
+> 1. **Shell History**: Your shell (bash, zsh, etc.) will likely save the command and arguments to its history file (`~/.zsh_history`, etc.).
+> 2. **Process List**: While running, arguments are visible to other users/processes via `ps`.
+>
+> For sensitive operations, **always use the Interactive TUI** (default mode) or disable your shell history before running CLI commands.
+
 The CLI provides subcommands for single-shot operations:
 
 ```bash
