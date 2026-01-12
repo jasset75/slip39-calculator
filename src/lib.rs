@@ -19,6 +19,9 @@ pub enum Error {
 
     #[error("Prefix '{0}' is ambiguous (matches {1} words: {2})")]
     AmbiguousPrefix(String, usize, String),
+
+    #[error("Index {0} out of wordlist range (0-1023)")]
+    IndexOutOfRange(usize),
 }
 
 /// The complete SLIP-39 wordlist (1024 words)
@@ -37,6 +40,21 @@ pub fn wordlist() -> &'static [&'static str] {
             .map(|line| line.trim())
             .collect()
     })
+}
+
+/// Get a word from the wordlist by its index (0-1023)
+///
+/// # Arguments
+/// * `index` - The index to retrieve
+///
+/// # Returns
+/// * `Ok(&str)` - The word at the given index
+/// * `Err(Error::IndexOutOfRange)` - If index is > 1023
+pub fn get_word_by_index(index: usize) -> Result<&'static str, Error> {
+    wordlist()
+        .get(index)
+        .copied()
+        .ok_or(Error::IndexOutOfRange(index))
 }
 
 /// Find all words in the wordlist that start with the given prefix
@@ -206,6 +224,13 @@ mod tests {
     #[test]
     fn test_decode_second_word() {
         assert_eq!(decode("0000000001").unwrap(), "acid");
+    }
+
+    #[test]
+    fn test_get_word_by_index_out_of_range() {
+        let result = get_word_by_index(1024);
+        assert!(result.is_err());
+        assert!(matches!(result, Err(Error::IndexOutOfRange(1024))));
     }
 
     #[test]

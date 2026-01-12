@@ -65,9 +65,9 @@ enum Commands {
 }
 
 // Helper to find input word, optionally using prefix matching
-fn find_word(word: &str, use_prefix: bool) -> Result<String, String> {
+fn find_word(word: &str, use_prefix: bool) -> Result<String, slip39_calculator::Error> {
     if use_prefix {
-        slip39_calculator::find_by_prefix(word).map_err(|e| format!("{}", e))
+        slip39_calculator::find_by_prefix(word)
     } else {
         // Default behavior: just normalize and check strictly (via encode internal logic or manual check)
         // Since we want to return the *correctly cased* word for further processing,
@@ -76,7 +76,7 @@ fn find_word(word: &str, use_prefix: bool) -> Result<String, String> {
         if wordlist().contains(&normalized.as_str()) {
             Ok(normalized)
         } else {
-            Err(format!("Word '{}' not found in SLIP-39 wordlist", word))
+            Err(slip39_calculator::Error::WordNotFound(word.to_string()))
         }
     }
 }
@@ -84,30 +84,22 @@ fn find_word(word: &str, use_prefix: bool) -> Result<String, String> {
 fn main() {
     let cli = Cli::parse();
 
-    let result = match cli.command {
-        Commands::EncodeWord { word, prefix } => {
-            find_word(&word, prefix).and_then(|w| encode(&w).map_err(|e| format!("{}", e)))
-        }
+    let result: Result<String, slip39_calculator::Error> = match cli.command {
+        Commands::EncodeWord { word, prefix } => find_word(&word, prefix).and_then(|w| encode(&w)),
 
-        Commands::DecodeBits { binary } => decode(&binary).map_err(|e| format!("{}", e)),
+        Commands::DecodeBits { binary } => decode(&binary),
 
         Commands::WordToIndex { word, prefix } => find_word(&word, prefix).and_then(|w| {
             wordlist()
                 .iter()
                 .position(|&list_word| list_word == w)
                 .map(|index| index.to_string())
-                .ok_or_else(|| format!("Word '{}' not found in SLIP-39 wordlist", w))
+                // This shouldn't happen if find_word works correctly, but safe fallback
+                .ok_or(slip39_calculator::Error::WordNotFound(w))
         }),
 
         Commands::IndexToWord { index } => {
-            if index > 1023 {
-                Err(format!("Index {} out of range (must be 0-1023)", index))
-            } else {
-                wordlist()
-                    .get(index)
-                    .map(|&w| w.to_string())
-                    .ok_or_else(|| format!("Index {} not found in wordlist", index))
-            }
+            slip39_calculator::get_word_by_index(index).map(|w| w.to_string())
         }
 
         Commands::Explain { word, prefix } => {
@@ -117,7 +109,7 @@ fn main() {
                     .position(|&list_word| list_word == w)
                     .unwrap(); // find_word guarantees it's in list
 
-                let bits = encode(&w).map_err(|e| format!("{}", e))?;
+                let bits = encode(&w)?;
 
                 Ok(format!("{} -> {} -> {}", w, index, bits))
             })
