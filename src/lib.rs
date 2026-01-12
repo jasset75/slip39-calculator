@@ -16,6 +16,9 @@ pub enum Error {
 
     #[error("Binary must be exactly 10 bits, got {0} bits")]
     InvalidBinaryLength(usize),
+
+    #[error("Prefix '{0}' is ambiguous (matches {1} words: {2})")]
+    AmbiguousPrefix(String, usize, String),
 }
 
 /// The complete SLIP-39 wordlist (1024 words)
@@ -34,6 +37,63 @@ pub fn wordlist() -> &'static [&'static str] {
             .map(|line| line.trim())
             .collect()
     })
+}
+
+/// Find all words in the wordlist that start with the given prefix
+///
+/// # Arguments
+/// * `prefix` - The prefix to search for (case-insensitive, trimmed)
+///
+/// # Returns
+/// * `Vec<&str>` - List of all matching words
+pub fn find_matches(prefix: &str) -> Vec<&'static str> {
+    let normalized = prefix.trim().to_lowercase();
+
+    // Optimizaton: check for exact match first
+    for &word in wordlist() {
+        if word == normalized {
+            return vec![word];
+        }
+    }
+
+    wordlist()
+        .iter()
+        .filter(|&&word| word.starts_with(&normalized))
+        .cloned()
+        .collect()
+}
+
+/// Find a word in the wordlist by unique prefix
+///
+/// # Arguments
+/// * `prefix` - The prefix to search for
+///
+/// # Returns
+/// * `Ok(String)` - The matching word if exactly one match found
+/// * `Err(Error::WordNotFound)` - If no words start with prefix
+/// * `Err(Error::AmbiguousPrefix)` - If multiple words start with prefix
+pub fn find_by_prefix(prefix: &str) -> Result<String, Error> {
+    let matches = find_matches(prefix);
+
+    match matches.len() {
+        0 => Err(Error::WordNotFound(prefix.to_string())),
+        1 => Ok(matches[0].to_string()),
+        count => {
+            // Show first 3 matches in error message
+            let examples = matches
+                .iter()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            let suffix = if count > 3 { ", ..." } else { "" };
+            Err(Error::AmbiguousPrefix(
+                prefix.to_string(),
+                count,
+                format!("{}{}", examples, suffix),
+            ))
+        }
+    }
 }
 
 /// SHA256 checksum of the official wordlist.txt file

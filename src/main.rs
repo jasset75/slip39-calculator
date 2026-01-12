@@ -17,19 +17,17 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Encode a SLIP-39 word to its 10-bit binary representation
-    ///
-    /// Example: slip39c encode-word academic
-    /// Output: 0000000000
     #[command(name = "encode-word")]
     EncodeWord {
         /// The SLIP-39 word to encode
         word: String,
+
+        /// Allow fuzzy matching by unique prefix
+        #[arg(long, short)]
+        prefix: bool,
     },
 
     /// Decode a 10-bit binary string to its SLIP-39 word
-    ///
-    /// Example: slip39c decode-bits 0000000001
-    /// Output: acid
     #[command(name = "decode-bits")]
     DecodeBits {
         /// The 10-bit binary string to decode (e.g., "0000000001")
@@ -37,42 +35,69 @@ enum Commands {
     },
 
     /// Get the index (0-1023) of a SLIP-39 word
-    ///
-    /// Example: slip39c word-to-index academic
-    /// Output: 0
     #[command(name = "word-to-index")]
     WordToIndex {
         /// The SLIP-39 word to look up
         word: String,
+
+        /// Allow fuzzy matching by unique prefix
+        #[arg(long, short)]
+        prefix: bool,
     },
 
     /// Get the SLIP-39 word at a specific index (0-1023)
-    ///
-    /// Example: slip39c index-to-word 1023
-    /// Output: zero
     #[command(name = "index-to-word")]
     IndexToWord {
         /// The index (0-1023) of the word to retrieve
         index: usize,
     },
+
+    /// Explain a word: show word -> index -> bits
+    #[command(name = "explain")]
+    Explain {
+        /// The SLIP-39 word to explain
+        word: String,
+
+        /// Allow fuzzy matching by unique prefix
+        #[arg(long, short)]
+        prefix: bool,
+    },
+}
+
+// Helper to find input word, optionally using prefix matching
+fn find_word(word: &str, use_prefix: bool) -> Result<String, String> {
+    if use_prefix {
+        slip39_calculator::find_by_prefix(word).map_err(|e| format!("{}", e))
+    } else {
+        // Default behavior: just normalize and check strictly (via encode internal logic or manual check)
+        // Since we want to return the *correctly cased* word for further processing,
+        // we essentially do what encode does but return the word itself.
+        let normalized = word.trim().to_lowercase();
+        if wordlist().contains(&normalized.as_str()) {
+            Ok(normalized)
+        } else {
+            Err(format!("Word '{}' not found in SLIP-39 wordlist", word))
+        }
+    }
 }
 
 fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::EncodeWord { word } => encode(&word).map_err(|e| format!("{}", e)),
+        Commands::EncodeWord { word, prefix } => {
+            find_word(&word, prefix).and_then(|w| encode(&w).map_err(|e| format!("{}", e)))
+        }
 
         Commands::DecodeBits { binary } => decode(&binary).map_err(|e| format!("{}", e)),
 
-        Commands::WordToIndex { word } => {
-            let normalized = word.trim().to_lowercase();
+        Commands::WordToIndex { word, prefix } => find_word(&word, prefix).and_then(|w| {
             wordlist()
                 .iter()
-                .position(|&w| w == normalized)
+                .position(|&list_word| list_word == w)
                 .map(|index| index.to_string())
-                .ok_or_else(|| format!("Word '{}' not found in SLIP-39 wordlist", word))
-        }
+                .ok_or_else(|| format!("Word '{}' not found in SLIP-39 wordlist", w))
+        }),
 
         Commands::IndexToWord { index } => {
             if index > 1023 {
@@ -83,6 +108,19 @@ fn main() {
                     .map(|&w| w.to_string())
                     .ok_or_else(|| format!("Index {} not found in wordlist", index))
             }
+        }
+
+        Commands::Explain { word, prefix } => {
+            find_word(&word, prefix).and_then(|w| {
+                let index = wordlist()
+                    .iter()
+                    .position(|&list_word| list_word == w)
+                    .unwrap(); // find_word guarantees it's in list
+
+                let bits = encode(&w).map_err(|e| format!("{}", e))?;
+
+                Ok(format!("{} -> {} -> {}", w, index, bits))
+            })
         }
     };
 
