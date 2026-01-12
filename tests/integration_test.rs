@@ -1,9 +1,9 @@
-use slip39_calculator::{decode, encode, WORDLIST};
+use slip39_calculator::{decode, encode, wordlist};
 
 #[test]
 fn test_encode_decode_roundtrip() {
     // Test roundtrip for first 10 words
-    for word in WORDLIST.iter().take(10) {
+    for word in wordlist().iter().take(10) {
         let binary = encode(word).unwrap();
         let decoded = decode(&binary).unwrap();
         assert_eq!(decoded, *word);
@@ -13,19 +13,20 @@ fn test_encode_decode_roundtrip() {
 #[test]
 fn test_wordlist_length() {
     // SLIP-39 wordlist must have exactly 1024 words (2^10)
-    assert_eq!(WORDLIST.len(), 1024);
+    assert_eq!(wordlist().len(), 1024);
 }
 
 #[test]
 fn test_wordlist_alphabetical_order() {
     // Verify wordlist is in alphabetical order
-    for i in 0..WORDLIST.len() - 1 {
+    let words = wordlist();
+    for i in 0..words.len() - 1 {
         assert!(
-            WORDLIST[i] < WORDLIST[i + 1],
+            words[i] < words[i + 1],
             "Wordlist not in alphabetical order at index {}: '{}' should come before '{}'",
             i,
-            WORDLIST[i],
-            WORDLIST[i + 1]
+            words[i],
+            words[i + 1]
         );
     }
 }
@@ -33,8 +34,9 @@ fn test_wordlist_alphabetical_order() {
 #[test]
 fn test_first_and_last_words() {
     // Verify first and last words match SLIP-39 specification
-    assert_eq!(WORDLIST[0], "academic");
-    assert_eq!(WORDLIST[1023], "zero");
+    let words = wordlist();
+    assert_eq!(words[0], "academic");
+    assert_eq!(words[1023], "zero");
 }
 
 #[test]
@@ -60,17 +62,19 @@ fn test_wordlist_matches_official_slip39() {
         .filter(|line| !line.is_empty())
         .collect();
     
+    let words = wordlist();
+    
     // Compare lengths
     assert_eq!(
-        WORDLIST.len(),
+        words.len(),
         official_words.len(),
         "Wordlist length mismatch. Expected {}, got {}",
         official_words.len(),
-        WORDLIST.len()
+        words.len()
     );
     
     // Compare each word
-    for (i, (local, official)) in WORDLIST.iter().zip(official_words.iter()).enumerate() {
+    for (i, (local, official)) in words.iter().zip(official_words.iter()).enumerate() {
         assert_eq!(
             local, official,
             "Word mismatch at index {}: local='{}', official='{}'",
@@ -78,5 +82,5 @@ fn test_wordlist_matches_official_slip39() {
         );
     }
     
-    println!("✓ Wordlist matches official SLIP-39 specification ({} words)", WORDLIST.len());
+    println!("✓ Wordlist matches official SLIP-39 specification ({} words)", words.len());
 }

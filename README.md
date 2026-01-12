@@ -143,13 +143,23 @@ slip39-calculator/
 │   ├── lib.rs          # Core encode/decode library
 │   └── main.rs         # CLI/TUI binary
 ├── const/
-│   └── wordlist_array.txt  # Embedded SLIP-39 wordlist
+│   └── wordlist.txt    # Official SLIP-39 wordlist (commit 1524583)
 ├── tests/
 │   └── integration_test.rs # Integration tests
 ├── Cargo.toml
 ├── .mise.toml          # Rust version config
 └── README.md
 ```
+
+## Wordlist Integrity
+
+The wordlist is loaded lazily at runtime from the official SLIP-39 repository source:
+- **Source**: [satoshilabs/slips](https://github.com/satoshilabs/slips/blob/master/slip-0039/wordlist.txt)
+- **Commit**: `1524583213f1392321109b0ff0a91330836ecb32` (2019-03-02)
+- **SHA256**: `bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3`
+- **Loading**: Uses `std::sync::OnceLock` for lazy initialization (no build script required)
+
+The wordlist file is embedded into the binary at compile time using `include_str!`, then parsed and validated on first access. The SHA256 checksum is verified at test time to ensure integrity.
 
 ## License
 

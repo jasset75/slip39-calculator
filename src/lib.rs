@@ -3,6 +3,8 @@
 //! This library provides functions to encode and decode SLIP-39 mnemonic words
 //! to/from their 10-bit binary representation.
 
+use std::sync::OnceLock;
+
 /// Errors that can occur during encoding/decoding
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -17,14 +19,30 @@ pub enum Error {
 }
 
 /// The complete SLIP-39 wordlist (1024 words)
-pub const WORDLIST: &[&str] = &include!("../const/wordlist_array.txt");
+/// Loaded lazily from const/wordlist.txt on first access
+/// Official source: https://github.com/satoshilabs/slips/blob/1524583/slip-0039/wordlist.txt
+/// Commit: 1524583213f1392321109b0ff0a91330836ecb32 (2019-03-02)
+pub static WORDLIST: OnceLock<Vec<&'static str>> = OnceLock::new();
 
-/// SHA256 checksum of the wordlist array file
-/// This ensures the wordlist hasn't been accidentally modified.
+/// Get the WORDLIST, initializing it if necessary
+/// This function is public to allow integration tests to access the wordlist
+pub fn wordlist() -> &'static [&'static str] {
+    WORDLIST.get_or_init(|| {
+        include_str!("../const/wordlist.txt")
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.trim())
+            .collect()
+    })
+}
+
+/// SHA256 checksum of the official wordlist.txt file
+/// This ensures the wordlist matches the official SLIP-39 specification.
+/// Official commit: 1524583213f1392321109b0ff0a91330836ecb32 (2019-03-02)
 /// If this test fails, either:
 /// 1. The wordlist file was corrupted (restore from git)
-/// 2. You intentionally updated it (update this constant via `shasum -a 256 const/wordlist_array.txt`)
-pub const WORDLIST_SHA256: &str = "5f8d1360496a206dc80ea5a513f6ab1f36982b8f4b3005d0cfb3ba0302eba0ac";
+/// 2. You intentionally updated it (update this constant via `shasum -a 256 const/wordlist.txt`)
+pub const WORDLIST_SHA256: &str = "bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3";
 
 
 /// Encode a SLIP-39 word to its 10-bit binary representation
@@ -44,7 +62,7 @@ pub const WORDLIST_SHA256: &str = "5f8d1360496a206dc80ea5a513f6ab1f36982b8f4b300
 /// assert_eq!(binary, "0000000001");
 /// ```
 pub fn encode(word: &str) -> Result<String, Error> {
-    WORDLIST
+    wordlist()
         .iter()
         .position(|&w| w == word)
         .map(|index| format!("{:010b}", index))
@@ -85,7 +103,7 @@ pub fn decode(binary: &str) -> Result<String, Error> {
         .map_err(|e| Error::InvalidBinary(e.to_string()))?;
     
     // Get word from wordlist
-    WORDLIST
+    wordlist()
         .get(index)
         .map(|&w| w.to_string())
         .ok_or_else(|| Error::InvalidBinary(
@@ -159,17 +177,15 @@ mod tests {
     #[test]
     fn test_wordlist_checksum() {
         use sha2::{Sha256, Digest};
+        use std::fs;
         
-        // Reconstruct the wordlist array file content
-        let mut content = String::from("[\n");
-        for word in WORDLIST.iter() {
-            content.push_str(&format!("\"{}\",\n", word));
-        }
-        content.push_str("]\n");
+        // Read the official wordlist.txt file
+        let content = fs::read("const/wordlist.txt")
+            .expect("Failed to read const/wordlist.txt");
         
         // Calculate SHA256
         let mut hasher = Sha256::new();
-        hasher.update(content.as_bytes());
+        hasher.update(&content);
         let result = hasher.finalize();
         let hash = format!("{:x}", result);
         
@@ -180,10 +196,25 @@ mod tests {
              Expected: {}\n\
              Got:      {}\n\
              \n\
-             The wordlist file has been modified. If this was intentional, update WORDLIST_SHA256.\n\
-             Otherwise, restore the file from git: git checkout const/wordlist_array.txt",
+             The official wordlist.txt file has been modified.\n\
+             This should match commit 1524583213f1392321109b0ff0a91330836ecb32 from:\n\
+             https://github.com/satoshilabs/slips/blob/master/slip-0039/wordlist.txt\n\
+             \n\
+             If this was intentional, update WORDLIST_SHA256.\n\
+             Otherwise, restore the file from git: git checkout const/wordlist.txt",
             WORDLIST_SHA256,
             hash
         );
+    }
+
+    #[test]
+    fn test_wordlist_initialization() {
+        // Verify wordlist initializes correctly
+        let words = wordlist();
+        assert_eq!(words.len(), 1024, "SLIP-39 wordlist must have exactly 1024 words");
+        
+        // Verify first and last words
+        assert_eq!(words[0], "academic");
+        assert_eq!(words[1023], "zero");
     }
 }
