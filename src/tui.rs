@@ -174,6 +174,8 @@ where
                             if let Some(curr) = app.saved_index {
                                 if curr < app.saved_words.len() - 1 {
                                     app.saved_index = Some(curr + 1);
+                                } else {
+                                    app.saved_index = None; // Exit review mode
                                 }
                             } else {
                                 app.saved_index = Some(0);
@@ -372,7 +374,11 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
     // Counter overlay (top right of block)
     let count_text = if app.paper_mode {
         " < Paper Mode > ".to_string()
+    } else if let Some(idx) = app.saved_index {
+        // Reviewing history: "4 / 5 [20]"
+        format!(" Word #{}/{} [20] ", idx + 1, app.saved_words.len())
     } else {
+        // Inputting: "5 / 20"
         format!(" Word #{}/20 ", app.saved_words.len())
     };
 
