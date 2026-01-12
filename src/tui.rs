@@ -124,7 +124,6 @@ where
             if key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Esc => return Ok(()),
-                    KeyCode::Char('q') if app.input.is_empty() => return Ok(()),
 
                     // Input handling
                     KeyCode::Char(c) => {
@@ -337,7 +336,7 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
         }
     } else {
         for _ in 0..10 {
-            row2.push(Span::styled("  ?  ", Style::default().fg(Color::Gray)));
+            row2.push(Span::styled("  #  ", Style::default().fg(Color::Gray)));
             row2.push(Span::styled("│", Style::default().fg(Color::Yellow)));
         }
     }
@@ -394,7 +393,10 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_input(f: &mut Frame, app: &App, area: Rect) {
-    let block = Block::default().borders(Borders::ALL).title(" Search ");
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(" Search ");
 
     let prompt = if app.paper_mode {
         "Word > ".to_string()
@@ -405,24 +407,16 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
     let input_text = format!("{}{}{}", prompt, app.input, "_"); // Cursor
     let p = Paragraph::new(input_text)
         .block(block)
-        .style(Style::default().fg(Color::White));
+        .style(Style::default().fg(Color::Cyan));
     f.render_widget(p, area);
 
     let help_text =
         "Esc: Exit | Enter: Select | \u{2190}\u{2192}: Suggest | \u{2191}\u{2193}: History";
     let help_p = Paragraph::new(help_text)
         .alignment(ratatui::layout::Alignment::Right)
-        .style(Style::default().fg(Color::DarkGray));
-    let help_rect = Rect::new(area.x, area.y + 2, area.width - 2, 1); // Bottom line of block
-                                                                      // We can render checking constraints, but for now just comment or leave unused if logic isn't perfect
-                                                                      // f.render_widget(help_p, help_rect);
-                                                                      // To silence warning, use help_rect
-    let _ = help_rect;
-    let _ = help_p;
-    // Or actually render it if it fits?
-    // Let's rely on main input block having enough height (3 lines), so help fits in 3rd line.
-    // input takes 2nd line.
-    // Border takes 1st and 3rd.
-    // So we can't really put text below without overwriting border or extending.
-    // Let's just suppress warning.
+        .style(Style::default().fg(Color::Cyan));
+
+    // Render help text on the bottom border of the input block
+    let help_rect = Rect::new(area.x + 1, area.y + 2, area.width - 2, 1);
+    f.render_widget(help_p, help_rect);
 }
