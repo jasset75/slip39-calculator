@@ -1,2 +1,6 @@
 [tools]
-rust = "1.88.0"
+rust = "1.92"
+lefthook = "latest"
+
+[tasks.install-hooks]
+run = "lefthook install"
