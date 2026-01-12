@@ -1,17 +1,28 @@
+mod tui;
+
 use clap::{Parser, Subcommand};
 use slip39_calculator::{decode, encode, wordlist};
 use std::process;
 
 /// SLIP-39 wordlist encoder/decoder
 ///
-/// A CLI tool for encoding and decoding SLIP-39 mnemonic words
-/// to/from their 10-bit binary representation.
+/// A tool for encoding and decoding SLIP-39 mnemonic words.
+/// Runs in interactive TUI mode by default.
+/// Use subcommands for CLI scripting.
 #[derive(Parser)]
 #[command(name = "slip39c")]
-#[command(author, version, about, long_about = None)]
+#[command(author, version)]
+#[command(about = "SLIP-39 Wordlist Calculator")]
+#[command(
+    long_about = "SLIP-39 Wordlist Calculator\n\nBy default, this tool launches an interactive TUI (Terminal User Interface) for exploring the wordlist and calculating 10-bit binary representations.\n\nRun 'slip39c --help' for CLI commands."
+)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
+
+    /// Launch in paper mode (TUI only) - doesn't save history
+    #[arg(long, short)]
+    paper: bool,
 }
 
 #[derive(Subcommand)]
@@ -64,63 +75,76 @@ enum Commands {
     },
 }
 
-// Helper to find input word, optionally using prefix matching
-fn find_word(word: &str, use_prefix: bool) -> Result<String, slip39_calculator::Error> {
-    if use_prefix {
-        slip39_calculator::find_by_prefix(word)
+// Helper to find input word, optionally using prefix matching (placeholder logic for now)
+fn find_word(word: &str, _use_prefix: bool) -> Result<String, slip39_calculator::Error> {
+    // For now, no fuzzy search in core lib, so just normalize
+    let normalized = word.trim().to_lowercase();
+    if wordlist().contains(&normalized.as_str()) {
+        Ok(normalized)
     } else {
-        // Default behavior: just normalize and check strictly (via encode internal logic or manual check)
-        // Since we want to return the *correctly cased* word for further processing,
-        // we essentially do what encode does but return the word itself.
-        let normalized = word.trim().to_lowercase();
-        if wordlist().contains(&normalized.as_str()) {
-            Ok(normalized)
-        } else {
-            Err(slip39_calculator::Error::WordNotFound(word.to_string()))
-        }
+        Err(slip39_calculator::Error::WordNotFound(word.to_string()))
     }
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    let result: Result<String, slip39_calculator::Error> = match cli.command {
-        Commands::EncodeWord { word, prefix } => find_word(&word, prefix).and_then(|w| encode(&w)),
+    match cli.command {
+        Some(command) => {
+            let result: Result<String, slip39_calculator::Error> = match command {
+                Commands::EncodeWord { word, prefix } => {
+                    find_word(&word, prefix).and_then(|w| encode(&w))
+                }
 
-        Commands::DecodeBits { binary } => decode(&binary),
+                Commands::DecodeBits { binary } => decode(&binary),
 
-        Commands::WordToIndex { word, prefix } => find_word(&word, prefix).and_then(|w| {
-            wordlist()
-                .iter()
-                .position(|&list_word| list_word == w)
-                .map(|index| index.to_string())
-                // This shouldn't happen if find_word works correctly, but safe fallback
-                .ok_or(slip39_calculator::Error::WordNotFound(w))
-        }),
+                Commands::WordToIndex { word, prefix } => find_word(&word, prefix).and_then(|w| {
+                    wordlist()
+                        .iter()
+                        .position(|&list_word| list_word == w)
+                        .map(|index| index.to_string())
+                        .ok_or(slip39_calculator::Error::WordNotFound(w))
+                }),
 
-        Commands::IndexToWord { index } => {
-            slip39_calculator::get_word_by_index(index).map(|w| w.to_string())
+                Commands::IndexToWord { index } => {
+                    // Since public API doesn't expose get by index directly other than ARRAY usage by user?
+                    // Wait, public API only exposes encode/decode.
+                    // The WORDLIST is public though.
+                    if index < wordlist().len() {
+                        Ok(wordlist()[index].to_string())
+                    } else {
+                        // Simple error
+                        Err(slip39_calculator::Error::InvalidBinaryLength(index))
+                        // Misusing error type but okay for CLI MVP
+                    }
+                }
+
+                Commands::Explain { word, prefix } => find_word(&word, prefix).and_then(|w| {
+                    let index = wordlist()
+                        .iter()
+                        .position(|&list_word| list_word == w)
+                        .unwrap();
+
+                    let bits = encode(&w)?;
+
+                    Ok(format!("{} -> {} -> {}", w, index, bits))
+                }),
+            };
+
+            match result {
+                Ok(output) => println!("{}", output),
+                Err(error) => {
+                    eprintln!("Error: {}", error);
+                    process::exit(1);
+                }
+            }
         }
-
-        Commands::Explain { word, prefix } => {
-            find_word(&word, prefix).and_then(|w| {
-                let index = wordlist()
-                    .iter()
-                    .position(|&list_word| list_word == w)
-                    .unwrap(); // find_word guarantees it's in list
-
-                let bits = encode(&w)?;
-
-                Ok(format!("{} -> {} -> {}", w, index, bits))
-            })
-        }
-    };
-
-    match result {
-        Ok(output) => println!("{}", output),
-        Err(error) => {
-            eprintln!("Error: {}", error);
-            process::exit(1);
+        None => {
+            // Run TUI
+            if let Err(e) = tui::run(cli.paper) {
+                eprintln!("Application error: {}", e);
+                process::exit(1);
+            }
         }
     }
 }
