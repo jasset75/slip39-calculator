@@ -154,6 +154,22 @@ This project uses [mise](https://mise.jdx.dev/) for Rust version management and 
     ```
     This ensures `cargo` always uses the correct Rust version.
 
+### Common Development Tasks
+
+```bash
+# Format code
+cargo fmt
+
+# Lint
+cargo clippy
+
+# Run all tests
+cargo test
+
+# Run wordlist verification (slow/ignored by default)
+cargo test -- --ignored
+```
+
 ### Incremental Development
 
 Follow the task breakdown in `task.md`:
@@ -187,24 +203,10 @@ This project handles cryptographic recovery phrases. When implementing features:
 /// * `Err(Error::...)` - Error case
 ///
 /// # Example
-/// 
-### Common Development Tasks
-
-```bash
-# Format code
-cargo fmt
-
-# Lint
-cargo clippy
-
-# Run all tests
-cargo test
-
-# Run wordlist verification (slow/ignored by default)
-cargo test -- --ignored
-```
-
-### Adding a new word encoding function
+/// ```
+/// use slip39_calculator::function_name;
+/// assert_eq!(function_name(...), ...);
+/// ```
 pub fn function_name(...) -> Result<...> { ... }
 
 #[cfg(test)]

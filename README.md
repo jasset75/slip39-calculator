@@ -154,18 +154,6 @@ mise exec -- cargo test -- --ignored
 
 For detailed development documentation, including project structure, wordlist integrity technical details, and advanced workflows, please refer to [AGENTS.md](AGENTS.md).
 
-### Basic Setup
-
-```bash
-# Install dependencies
-mise install
-
-# Run tests
-cargo test
-// verify wordlist integrity
-cargo test -- --ignored
-```
-
 ## License
 
 Licensed under either of:
