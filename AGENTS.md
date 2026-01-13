@@ -7,7 +7,7 @@ This document provides context and guidelines for AI coding assistants working o
 **SLIP-39 Calculator** is a Rust library and interactive TUI for encoding/decoding SLIP-39 mnemonic words to/from 10-bit binary representation.
 
 - **Language**: Rust 2021 edition
-- **Minimum Rust Version**: 1.88.0 (managed via mise)
+- **Minimum Rust Version**: 1.92.0 (managed via mise)
 - **Architecture**: Library (`lib.rs`) + Binary (`main.rs`)
 - **UI Framework**: ratatui for TUI, clap for CLI
 - **Testing**: Unit tests, integration tests, doc tests
@@ -36,7 +36,7 @@ This document provides context and guidelines for AI coding assistants working o
 
 **Public API:**
 ```rust
-pub const WORDLIST: &[&str];  // 1024 SLIP-39 words
+pub fn wordlist() -> &'static [&'static str];  // 1024 SLIP-39 words
 pub fn encode(word: &str) -> Result<String, Error>;
 pub fn decode(binary: &str) -> Result<String, Error>;
 pub enum Error { ... }
@@ -45,7 +45,7 @@ pub enum Error { ... }
 **Design principles:**
 - Stateless functions
 - No external dependencies for core logic
-- Compile-time wordlist embedding via `include!`
+- Compile-time wordlist embedding via `include_str!` + `OnceLock`
 
 ### TUI Implementation (In Progress)
 
@@ -69,8 +69,9 @@ pub enum Error { ... }
 ### CLI Fallback
 
 ```bash
-slip39-calculator --cli encode <WORD>
-slip39-calculator --cli decode <BINARY>
+```bash
+slip39c encode-word <WORD>
+slip39c decode-bits <BINARY>
 ```
 
 For scripting and non-interactive use.
@@ -110,9 +111,9 @@ For scripting and non-interactive use.
 
 Follow the task breakdown in `task.md`:
 1. ✅ Core library (complete)
-2. 🚧 TUI implementation (in progress)
-3. ⏳ CLI fallback
-4. ⏳ Documentation
+2. ✅ TUI implementation (complete)
+3. ✅ CLI fallback (complete)
+4. 🚧 Documentation (in progress)
 5. ⏳ Verification
 
 ## Security Considerations
