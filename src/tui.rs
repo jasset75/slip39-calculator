@@ -611,8 +611,34 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
         .title(" Select Input Mode ")
         .style(Style::default().bg(Color::Black));
 
-    // Center the modal
-    let modal_area = centered_rect(60, 20, area);
+    // Center the modal (Fixed height of 9 rows ensures layout integrity)
+    // Height: 1 (Border) + 2 (Pad) + 3 (Buttons) + 2 (Pad) + 1 (Border) = 9
+    let height = 9;
+    let width_percent = 60;
+
+    let vertical_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length((area.height.saturating_sub(height)) / 2),
+            Constraint::Length(height),
+            Constraint::Min(0),
+        ])
+        .split(area);
+
+    let modal_area_vert = vertical_layout[1];
+
+    // Center horizontally (using existing percentage logic via manual constraints)
+    let horizontal_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - width_percent) / 2),
+            Constraint::Percentage(width_percent),
+            Constraint::Percentage((100 - width_percent) / 2),
+        ])
+        .split(modal_area_vert);
+
+    let modal_area = horizontal_layout[1];
+
     f.render_widget(Clear, modal_area); // Clear background
     f.render_widget(block, modal_area);
 
@@ -679,24 +705,4 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
         .style(Style::default().fg(Color::Gray))
         .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(help, layout[2]);
-}
-
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
 }
