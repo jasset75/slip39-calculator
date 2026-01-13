@@ -14,7 +14,8 @@ use std::process;
 #[command(author, version)]
 #[command(about = "SLIP-39 Wordlist Calculator")]
 #[command(
-    long_about = "SLIP-39 Wordlist Calculator\n\nBy default, this tool launches an interactive TUI (Terminal User Interface) for exploring the wordlist and calculating 10-bit binary representations.\n\nRun 'slip39c --help' for CLI commands."
+    long_about = "SLIP-39 Wordlist Calculator\n\nBy default, this tool launches an interactive TUI (Terminal User Interface) for exploring the wordlist and calculating 10-bit binary representations.\n\nRun 'slip39c --help' for CLI commands.",
+    after_long_help = "Note: Stateless mode encodes data using the SLIP-39 format, but generated phrases are independent and cannot be combined for recovery."
 )]
 struct Cli {
     #[command(subcommand)]

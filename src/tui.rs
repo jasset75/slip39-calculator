@@ -614,6 +614,7 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
             Constraint::Length(2), // Padding
             Constraint::Length(3), // Buttons
             Constraint::Length(2), // Padding
+            Constraint::Min(3),    // Warning Note
         ])
         .split(modal_area);
 
@@ -671,6 +672,13 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
         .style(Style::default().fg(Color::Gray))
         .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(help, layout[2]);
+
+    // Disclaimer Note
+    let note = "Note: Stateless mode encodes data using the SLIP-39 format,\nbut generated phrases are independent and cannot be combined for recovery.";
+    let note_p = Paragraph::new(note)
+        .style(Style::default().fg(Color::Yellow))
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(note_p, layout[3]);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

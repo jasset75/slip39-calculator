@@ -11,6 +11,15 @@ A Rust library and interactive TUI for encoding/decoding [SLIP-39](https://githu
 - 🦀 **Idiomatic Rust**: Modern Rust 2021 edition with comprehensive error handling
 - 🛡️ **Security-First**: Designed with ephemeral sessions and memory safety in mind
 
+## Disclaimer
+
+> [!CAUTION]
+> **Stateless Operation**
+>
+> This tool can be used as a stateless SLIP-39 encoder/decoder.
+> In this mode, each 20-word phrase is independent and not part of a recovery scheme: there are no thresholds, no groups, and no relationship between shares.
+> **Compatibility with SLIP-39 wallets applies only when phrases are generated as part of a proper SLIP-39 scheme.**
+
 ## Installation
 
 ### Prerequisites
