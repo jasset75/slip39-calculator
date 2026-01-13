@@ -152,79 +152,19 @@ mise exec -- cargo test -- --ignored
 
 ## Development
 
-This project uses [mise](https://mise.jdx.dev/) for Rust version management.
+For detailed development documentation, including project structure, wordlist integrity technical details, and advanced workflows, please refer to [AGENTS.md](AGENTS.md).
 
-### Setup
-
-#### Option 1: Using direnv (Recommended)
-
-If you have [direnv](https://direnv.net/) installed:
-
-```bash
-# Copy the example configuration
-cp .envrc.example .envrc
-
-# Allow direnv to load the environment
-direnv allow
-```
-
-Now `cargo` commands will automatically use the project's Rust version.
-
-#### Option 2: Using mise directly
+### Basic Setup
 
 ```bash
 # Install dependencies
 mise install
 
-# Run commands with mise exec
-mise exec -- cargo run
-mise exec -- cargo fmt
-mise exec -- cargo clippy
+# Run tests
+cargo test
+// verify wordlist integrity
+cargo test -- --ignored
 ```
-
-### Common Development Tasks
-
-```bash
-# Format code
-cargo fmt
-
-# Lint
-cargo clippy
-
-# Run the application
-cargo run -- encode-word academic
-
-# Install locally for testing
-cargo install --path .
-slip39c --help
-```
-
-## Project Structure
-
-```
-slip39-calculator/
-├── src/
-│   ├── lib.rs          # Core encode/decode library
-│   └── main.rs         # CLI/TUI binary (slip39c)
-├── const/
-│   └── wordlist.txt    # Official SLIP-39 wordlist (commit 1524583)
-├── tests/
-│   └── integration_test.rs # Integration tests
-├── Cargo.toml          # Package manifest
-├── .mise.toml          # Rust version config (1.92)
-├── .envrc.example      # direnv configuration template
-└── README.md
-```
-
-## Wordlist Integrity
-
-The wordlist is loaded lazily at runtime from the official SLIP-39 repository source:
-- **Source**: [satoshilabs/slips](https://github.com/satoshilabs/slips/blob/master/slip-0039/wordlist.txt)
-- **Commit**: `1524583213f1392321109b0ff0a91330836ecb32` (2019-03-02)
-- **SHA256**: `bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3`
-- **Loading**: Uses `std::sync::OnceLock` for lazy initialization (no build script required)
-
-The wordlist file is embedded into the binary at compile time using `include_str!`, then parsed and validated on first access. The SHA256 checksum is verified at test time to ensure integrity.
 
 ## License
 

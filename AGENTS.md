@@ -28,7 +28,37 @@ This document provides context and guidelines for AI coding assistants working o
 - **Security considerations**: This handles cryptographic material (mnemonic words)
   - TUI uses alternate screen buffer (no scrollback)
   - Paper mode available for maximum security
+  - TUI uses alternate screen buffer (no scrollback)
+  - Paper mode available for maximum security
   - No logging of sensitive data
+
+## Project Structure
+
+```
+slip39-calculator/
+├── src/
+│   ├── lib.rs          # Core encode/decode library
+│   └── main.rs         # CLI/TUI binary (slip39c)
+├── const/
+│   └── wordlist.txt    # Official SLIP-39 wordlist (commit 1524583)
+├── tests/
+│   └── integration_test.rs # Integration tests
+├── Cargo.toml          # Package manifest
+├── .mise.toml          # Rust version config (1.92)
+├── .envrc.example      # direnv configuration template
+├── lefthook.yml        # Git hooks configuration
+└── README.md
+```
+
+## Wordlist Integrity
+
+The wordlist is loaded lazily at runtime from the official SLIP-39 repository source:
+- **Source**: [satoshilabs/slips](https://github.com/satoshilabs/slips/blob/master/slip-0039/wordlist.txt)
+- **Commit**: `1524583213f1392321109b0ff0a91330836ecb32` (2019-03-02)
+- **SHA256**: `bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3`
+- **Loading**: Uses `std::sync::OnceLock` for lazy initialization.
+
+The wordlist file is embedded into the binary at compile time using `include_str!`, then parsed and validated on first access. The SHA256 checksum is verified at test time to ensure integrity.
 
 ## Architecture
 
@@ -107,6 +137,23 @@ For scripting and non-interactive use.
 4. **Formatting**: Use `cargo fmt`
 5. **Linting**: Use `cargo clippy`
 
+### Development Environment
+
+This project uses [mise](https://mise.jdx.dev/) for Rust version management and [lefthook](https://github.com/evilmartians/lefthook) for git hooks.
+
+#### Setup
+
+1.  **Install dependencies**:
+    ```bash
+    mise install
+    ```
+2.  **Configure direnv** (Recommended):
+    ```bash
+    cp .envrc.example .envrc
+    direnv allow
+    ```
+    This ensures `cargo` always uses the correct Rust version.
+
 ### Incremental Development
 
 Follow the task breakdown in `task.md`:
@@ -140,10 +187,24 @@ This project handles cryptographic recovery phrases. When implementing features:
 /// * `Err(Error::...)` - Error case
 ///
 /// # Example
-/// ```
-/// use slip39_calculator::function_name;
-/// assert_eq!(function_name(...), ...);
-/// ```
+/// 
+### Common Development Tasks
+
+```bash
+# Format code
+cargo fmt
+
+# Lint
+cargo clippy
+
+# Run all tests
+cargo test
+
+# Run wordlist verification (slow/ignored by default)
+cargo test -- --ignored
+```
+
+### Adding a new word encoding function
 pub fn function_name(...) -> Result<...> { ... }
 
 #[cfg(test)]
