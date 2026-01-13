@@ -284,12 +284,20 @@ fn ui(f: &mut Frame, app: &App) {
             Constraint::Length(3), // Suggestions Carousel
             Constraint::Min(10),   // Main Grid
             Constraint::Length(3), // Input & Help
+            Constraint::Length(2), // Disclaimer (2 lines)
         ])
         .split(f.area());
 
     render_carousel(f, app, chunks[0]);
     render_grid(f, app, chunks[1]);
     render_input(f, app, chunks[2]);
+
+    // Render Disclaimer Footer
+    let disclaimer = "Note: Stateless mode encodes data using the SLIP-39 format,\nbut generated phrases are independent and cannot be combined for recovery.";
+    let footer = Paragraph::new(disclaimer)
+        .style(Style::default().fg(Color::Yellow).bg(Color::Reset))
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(footer, chunks[3]);
 
     if app.state == AppState::Startup {
         render_modal(f, app, f.area());
@@ -614,7 +622,6 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
             Constraint::Length(2), // Padding
             Constraint::Length(3), // Buttons
             Constraint::Length(2), // Padding
-            Constraint::Min(3),    // Warning Note
         ])
         .split(modal_area);
 
@@ -672,13 +679,6 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
         .style(Style::default().fg(Color::Gray))
         .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(help, layout[2]);
-
-    // Disclaimer Note
-    let note = "Note: Stateless mode encodes data using the SLIP-39 format,\nbut generated phrases are independent and cannot be combined for recovery.";
-    let note_p = Paragraph::new(note)
-        .style(Style::default().fg(Color::Yellow))
-        .alignment(ratatui::layout::Alignment::Center);
-    f.render_widget(note_p, layout[3]);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
