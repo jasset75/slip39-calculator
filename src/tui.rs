@@ -8,11 +8,23 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame, Terminal,
 };
-use slip39_calculator::{encode, wordlist};
+use slip39_calculator::{decode, encode, wordlist};
 use std::{error::Error, io};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InputMode {
+    Word,
+    Binary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum AppState {
+    Startup,
+    Running,
+}
 
 /// TUI Application state
 pub struct App {
@@ -30,11 +42,22 @@ pub struct App {
     pub all_words: Vec<String>,
     /// Paper mode (don't accumulate words)
     pub paper_mode: bool,
+
+    // New Fields
+    state: AppState,
+    input_mode: Option<InputMode>, // None during Startup
+    modal_selection: InputMode,    // Which mode is highlighted in the modal
 }
 
 impl App {
-    pub fn new(paper_mode: bool) -> App {
-        App {
+    pub fn new(paper_mode: bool, mode: Option<InputMode>) -> Self {
+        let (state, input_mode) = if let Some(m) = mode {
+            (AppState::Running, Some(m))
+        } else {
+            (AppState::Startup, None)
+        };
+
+        Self {
             input: String::new(),
             suggestions: Vec::new(),
             suggestion_index: 0,
@@ -42,6 +65,9 @@ impl App {
             saved_index: None,
             all_words: wordlist().iter().map(|s| s.to_string()).collect(),
             paper_mode,
+            state,
+            input_mode,
+            modal_selection: InputMode::Word, // Default selection
         }
     }
 
@@ -66,13 +92,24 @@ impl App {
     }
 
     pub fn add_current_word(&mut self) {
-        if let Some(word) = self.suggestions.get(self.suggestion_index) {
+        let word_to_add = match self.input_mode {
+            Some(InputMode::Binary) => {
+                if self.input.len() == 10 {
+                    decode(&self.input).ok()
+                } else {
+                    None
+                }
+            }
+            Some(InputMode::Word) | None => self.suggestions.get(self.suggestion_index).cloned(),
+        };
+
+        if let Some(word) = word_to_add {
             if self.paper_mode {
                 self.saved_words.clear();
-                self.saved_words.push(word.clone());
+                self.saved_words.push(word);
                 self.saved_index = Some(0);
             } else if self.saved_words.len() < 20 {
-                self.saved_words.push(word.clone());
+                self.saved_words.push(word);
                 self.saved_index = Some(self.saved_words.len() - 1);
             }
             // Clear input after adding
@@ -82,7 +119,7 @@ impl App {
     }
 }
 
-pub fn run(paper_mode: bool) -> Result<(), Box<dyn Error>> {
+pub fn run(paper_mode: bool, mode: Option<InputMode>) -> Result<(), Box<dyn Error>> {
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -91,7 +128,7 @@ pub fn run(paper_mode: bool) -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create app
-    let mut app = App::new(paper_mode);
+    let mut app = App::new(paper_mode, mode);
     app.update_suggestions(); // Init suggestions
 
     // Run loop
@@ -122,72 +159,118 @@ where
 
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                match key.code {
-                    KeyCode::Esc => return Ok(()),
-
-                    // Input handling
-                    KeyCode::Char(c) => {
-                        app.input.push(c);
-                        app.update_suggestions();
-                    }
-                    KeyCode::Backspace => {
-                        app.input.pop();
-                        app.update_suggestions();
-                    }
-
-                    // Carousel Navigation
-                    KeyCode::Left => {
-                        if !app.suggestions.is_empty() {
-                            if app.suggestion_index > 0 {
-                                app.suggestion_index -= 1;
-                            } else {
-                                app.suggestion_index = app.suggestions.len() - 1;
-                                // Wrap around
-                            }
+                match app.state {
+                    AppState::Startup => match key.code {
+                        KeyCode::Esc => return Ok(()),
+                        KeyCode::Left | KeyCode::Right => {
+                            app.modal_selection = match app.modal_selection {
+                                InputMode::Word => InputMode::Binary,
+                                InputMode::Binary => InputMode::Word,
+                            };
                         }
-                    }
-                    KeyCode::Right => {
-                        if !app.suggestions.is_empty() {
-                            if app.suggestion_index < app.suggestions.len() - 1 {
-                                app.suggestion_index += 1;
-                            } else {
-                                app.suggestion_index = 0; // Wrap around
-                            }
+                        KeyCode::Enter => {
+                            app.input_mode = Some(app.modal_selection);
+                            app.state = AppState::Running;
                         }
-                    }
+                        _ => {}
+                    },
+                    AppState::Running => {
+                        match key.code {
+                            KeyCode::Esc => return Ok(()),
 
-                    // Saved words Navigation
-                    KeyCode::Up => {
-                        if !app.saved_words.is_empty() {
-                            if let Some(curr) = app.saved_index {
-                                if curr > 0 {
-                                    app.saved_index = Some(curr - 1);
+                            // Input handling
+                            KeyCode::Char(c) => {
+                                // Always switch to input mode (deselect history) when typing
+                                app.saved_index = None;
+
+                                match app.input_mode {
+                                    Some(InputMode::Binary) => {
+                                        if (c == '0' || c == '1') && app.input.len() < 10 {
+                                            app.input.push(c);
+                                        }
+                                    }
+                                    Some(InputMode::Word) | None => {
+                                        app.input.push(c);
+                                        app.update_suggestions();
+                                    }
                                 }
-                            } else {
-                                app.saved_index = Some(app.saved_words.len() - 1);
                             }
-                        }
-                    }
-                    KeyCode::Down => {
-                        if !app.saved_words.is_empty() {
-                            if let Some(curr) = app.saved_index {
-                                if curr < app.saved_words.len() - 1 {
-                                    app.saved_index = Some(curr + 1);
-                                } else {
-                                    app.saved_index = None; // Exit review mode
+                            KeyCode::Backspace => {
+                                // Always switch to input mode (deselect history) when editing
+                                app.saved_index = None;
+
+                                app.input.pop();
+                                match app.input_mode {
+                                    Some(InputMode::Word) | None => app.update_suggestions(),
+                                    _ => {}
                                 }
-                            } else {
-                                app.saved_index = Some(0);
                             }
+
+                            // Carousel Navigation
+                            KeyCode::Left => {
+                                // Switch to suggestion view
+                                app.saved_index = None;
+
+                                if app.input_mode == Some(InputMode::Word)
+                                    && !app.suggestions.is_empty()
+                                {
+                                    if app.suggestion_index > 0 {
+                                        app.suggestion_index -= 1;
+                                    } else {
+                                        app.suggestion_index = app.suggestions.len() - 1;
+                                        // Wrap around
+                                    }
+                                }
+                            }
+                            KeyCode::Right => {
+                                // Switch to suggestion view
+                                app.saved_index = None;
+
+                                if app.input_mode == Some(InputMode::Word)
+                                    && !app.suggestions.is_empty()
+                                {
+                                    if app.suggestion_index < app.suggestions.len() - 1 {
+                                        app.suggestion_index += 1;
+                                    } else {
+                                        app.suggestion_index = 0; // Wrap around
+                                    }
+                                }
+                            }
+
+                            // Saved words Navigation
+                            KeyCode::Up => {
+                                if !app.saved_words.is_empty() {
+                                    if let Some(curr) = app.saved_index {
+                                        if curr > 0 {
+                                            app.saved_index = Some(curr - 1);
+                                        }
+                                    } else {
+                                        app.saved_index = Some(app.saved_words.len() - 1);
+                                    }
+                                }
+                            }
+                            KeyCode::Down => {
+                                if !app.saved_words.is_empty() {
+                                    if let Some(curr) = app.saved_index {
+                                        if curr < app.saved_words.len() - 1 {
+                                            app.saved_index = Some(curr + 1);
+                                        } else {
+                                            app.saved_index = None; // Exit review mode
+                                        }
+                                    } else {
+                                        app.saved_index = Some(0);
+                                    }
+                                }
+                            }
+
+                            // Selection
+                            KeyCode::Enter => {
+                                app.add_current_word();
+                            }
+
+                            _ => {}
                         }
                     }
-
-                    // Selection
-                    KeyCode::Enter => {
-                        app.add_current_word();
-                    }
-
-                    _ => {}
                 }
             }
         }
@@ -207,9 +290,41 @@ fn ui(f: &mut Frame, app: &App) {
     render_carousel(f, app, chunks[0]);
     render_grid(f, app, chunks[1]);
     render_input(f, app, chunks[2]);
+
+    if app.state == AppState::Startup {
+        render_modal(f, app, f.area());
+    }
 }
 
 fn render_carousel(f: &mut Frame, app: &App, area: Rect) {
+    // If in Binary Mode, we can use this area to show the "Decoded Word" when complete
+    if app.input_mode == Some(InputMode::Binary) {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Decoded Word ");
+
+        // Check if input is valid 10-bit
+        let content = if app.input.len() == 10 {
+            match decode(&app.input) {
+                Ok(w) => Span::styled(
+                    format!("[ {} ]", w.to_uppercase()),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Err(_) => Span::styled("Invalid Binary", Style::default().fg(Color::Red)),
+            }
+        } else {
+            Span::raw("Enter 10 bits...")
+        };
+
+        let p = Paragraph::new(content)
+            .block(block)
+            .alignment(ratatui::layout::Alignment::Center);
+        f.render_widget(p, area);
+        return;
+    }
+
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Suggestions ");
@@ -259,12 +374,38 @@ fn render_carousel(f: &mut Frame, app: &App, area: Rect) {
 
 fn render_grid(f: &mut Frame, app: &App, area: Rect) {
     let (word, index, binary) = if let Some(idx) = app.saved_index {
+        // Viewing history (Priority)
         let w = &app.saved_words[idx];
         let i = app.all_words.iter().position(|x| x == w).unwrap_or(0);
         let b = encode(w).unwrap_or_else(|_| "0000000000".to_string());
         (Some(w.clone()), Some(i), Some(b))
+    } else if app.input_mode == Some(InputMode::Binary) {
+        // Live Binary Input
+        // If we have input, show it.
+        // If 10 bits, show word.
+        let b = app.input.clone();
+        let (w, i) = if b.len() == 10 {
+            match decode(&b) {
+                Ok(word) => {
+                    let idx = app.all_words.iter().position(|x| x == &word).unwrap_or(0);
+                    (Some(word), Some(idx))
+                }
+                Err(_) => (None, None),
+            }
+        } else {
+            (None, None)
+        };
+        (w, i, if b.is_empty() { None } else { Some(b) })
     } else {
-        (None, None, None)
+        // Word Mode (Show current suggestion if available)
+        if !app.suggestions.is_empty() && app.suggestion_index < app.suggestions.len() {
+            let w = &app.suggestions[app.suggestion_index];
+            let i = app.all_words.iter().position(|x| x == w).unwrap_or(0);
+            let b = encode(w).unwrap_or_else(|_| "0000000000".to_string());
+            (Some(w.clone()), Some(i), Some(b))
+        } else {
+            (None, None, None)
+        }
     };
 
     let base_color = if app.paper_mode {
@@ -396,8 +537,8 @@ fn render_grid(f: &mut Frame, app: &App, area: Rect) {
         // Reviewing history: "4 / 5 [20]"
         format!(" Word #{}/{} [20] ", idx + 1, app.saved_words.len())
     } else {
-        // Inputting: "5 / 20"
-        format!(" Word #{}/20 ", app.saved_words.len())
+        // Inputting: "5 / 20" -> "6 / 20"
+        format!(" Word #{}/20 ", app.saved_words.len() + 1)
     };
 
     let count_p = Paragraph::new(count_text)
@@ -421,7 +562,13 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
         )
         .title(" Search ");
 
-    let prompt = if app.paper_mode {
+    let prompt = if app.input_mode == Some(InputMode::Binary) {
+        if app.paper_mode {
+            "Bits/> ".to_string()
+        } else {
+            format!("Bits #{}/> ", app.saved_words.len() + 1)
+        }
+    } else if app.paper_mode {
         "Word/> ".to_string()
     } else {
         format!("Word #{}/> ", app.saved_words.len() + 1)
@@ -448,4 +595,100 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
     // Render help text on the bottom border of the input block
     let help_rect = Rect::new(area.x + 1, area.y + 2, area.width - 2, 1);
     f.render_widget(help_p, help_rect);
+}
+
+fn render_modal(f: &mut Frame, app: &App, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Select Input Mode ")
+        .style(Style::default().bg(Color::Black));
+
+    // Center the modal
+    let modal_area = centered_rect(60, 20, area);
+    f.render_widget(Clear, modal_area); // Clear background
+    f.render_widget(block, modal_area);
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2), // Padding
+            Constraint::Length(3), // Buttons
+            Constraint::Length(2), // Padding
+        ])
+        .split(modal_area);
+
+    let button_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(10),
+            Constraint::Percentage(35), // Word Button
+            Constraint::Percentage(10), // Gap
+            Constraint::Percentage(35), // Binary Button
+            Constraint::Percentage(10),
+        ])
+        .split(layout[1]);
+
+    // Word Button
+    let word_style = if app.modal_selection == InputMode::Word {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Cyan)
+    };
+    let word_btn = Paragraph::new("Word Input")
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(word_style),
+        )
+        .style(word_style)
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(word_btn, button_layout[1]);
+
+    // Binary Button
+    let binary_style = if app.modal_selection == InputMode::Binary {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Cyan)
+    };
+    let binary_btn = Paragraph::new("Binary Input")
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(binary_style),
+        )
+        .style(binary_style)
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(binary_btn, button_layout[3]);
+
+    // Help text
+    let help = Paragraph::new("Use \u{2190}/\u{2192} to select, Enter to confirm")
+        .style(Style::default().fg(Color::Gray))
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(help, layout[2]);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }

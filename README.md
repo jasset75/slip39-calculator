@@ -47,21 +47,37 @@ slip39c
 
 #### TUI Features
 
+- **Dual Input Modes**:
+  - **Word Mode** (Default): Type words to find their 10-bit binary index.
+  - **Binary Mode**: Type 0s and 1s to find the corresponding word.
 - **Incremental Search**: Filter 1024 words instantly as you type.
 - **Carousel Navigation**: Browse suggestion candidates horizontally with `Left`/`Right`.
-- **Memory Grid**: Visual representation of the 10-bit binary value for the selected word (Cyan = 1, Gray = 0).
+- **Memory Grid**: Visual representation of the 10-bit binary value (Cyan = 1, Gray = 0).
 - **History**: Keep track of up to 20 selected words.
 - **Visual Feedback**:
   - **Normal Mode**: Cyan (Blue) theme.
   - **Paper Mode**: Red theme (warning: no history).
 
+#### Startup Select
+If you run `slip39c` without arguments, a **Selection Modal** will appear letting you choose between Word and Binary input.
+
+You can also bypass the modal with CLI flags:
+
+```bash
+# Launch directly into Word Input Mode
+slip39c --mode word
+
+# Launch directly into Binary Input Mode
+slip39c --mode binary
+```
+
 #### Controls
 
 | Key | Action |
 | --- | --- |
-| `Type` | Filter suggestions |
-| `Enter` | Select current suggestion |
-| `←` / `→` | Navigate suggestions carousel |
+| `Type` | Filter suggestions (Word) / Enter bits (Binary) |
+| `Enter` | Select current suggestion / Decode binary |
+| `←` / `→` | Navigate suggestions / Mode Selection (Startup) |
 | `↑` / `↓` | Navigate saved words history |
 | `Esc` | Exit application |
 

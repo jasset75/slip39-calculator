@@ -1,6 +1,6 @@
 mod tui;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use slip39_calculator::{decode, encode, wordlist};
 use std::process;
 
@@ -19,14 +19,22 @@ use std::process;
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
-
-    /// Launch in paper mode (TUI only) - doesn't save history
-    #[arg(long, short)]
-    paper: bool,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Launch interactive TUI (default)
+    #[command(name = "tui")]
+    Tui {
+        /// Enable paper mode (no history)
+        #[arg(long, short)]
+        paper: bool,
+
+        /// Select input mode (word or binary)
+        #[arg(long, value_enum)]
+        mode: Option<InputModeArg>,
+    },
+
     /// Encode a SLIP-39 word to its 10-bit binary representation
     #[command(name = "encode-word")]
     EncodeWord {
@@ -75,6 +83,12 @@ enum Commands {
     },
 }
 
+#[derive(ValueEnum, Clone, Debug)]
+enum InputModeArg {
+    Word,
+    Binary,
+}
+
 // Helper to find input word, optionally using prefix matching (placeholder logic for now)
 fn find_word(word: &str, _use_prefix: bool) -> Result<String, slip39_calculator::Error> {
     // For now, no fuzzy search in core lib, so just normalize
@@ -90,6 +104,25 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
+        Some(Commands::Tui { paper, mode }) => {
+            if let Err(e) = tui::run(
+                paper,
+                mode.map(|m| match m {
+                    InputModeArg::Word => tui::InputMode::Word,
+                    InputModeArg::Binary => tui::InputMode::Binary,
+                }),
+            ) {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        }
+        None => {
+            // Default to TUI
+            if let Err(e) = tui::run(false, None) {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        }
         Some(command) => {
             let result: Result<String, slip39_calculator::Error> = match command {
                 Commands::EncodeWord { word, prefix } => {
@@ -107,15 +140,10 @@ fn main() {
                 }),
 
                 Commands::IndexToWord { index } => {
-                    // Since public API doesn't expose get by index directly other than ARRAY usage by user?
-                    // Wait, public API only exposes encode/decode.
-                    // The WORDLIST is public though.
                     if index < wordlist().len() {
                         Ok(wordlist()[index].to_string())
                     } else {
-                        // Simple error
                         Err(slip39_calculator::Error::InvalidBinaryLength(index))
-                        // Misusing error type but okay for CLI MVP
                     }
                 }
 
@@ -129,6 +157,8 @@ fn main() {
 
                     Ok(format!("{} -> {} -> {}", w, index, bits))
                 }),
+
+                Commands::Tui { .. } => unreachable!(), // Handled above
             };
 
             match result {
@@ -137,13 +167,6 @@ fn main() {
                     eprintln!("Error: {}", error);
                     process::exit(1);
                 }
-            }
-        }
-        None => {
-            // Run TUI
-            if let Err(e) = tui::run(cli.paper) {
-                eprintln!("Application error: {}", e);
-                process::exit(1);
             }
         }
     }
