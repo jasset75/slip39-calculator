@@ -5,11 +5,11 @@ pre-commit:
   parallel: true
   commands:
     fmt:
-      glob: "*.rs"
+      glob: "**/*.rs"
       run: cargo fmt --check
     clippy:
-      glob: "*.rs"
-      run: cargo clippy -- -D warnings
+      glob: "**/*.rs"
+      run: cargo clippy --workspace -- -D warnings
     test:
-      glob: "*.rs"
-      run: cargo test --quiet
+      glob: "**/*.rs"
+      run: cargo test --workspace --quiet
