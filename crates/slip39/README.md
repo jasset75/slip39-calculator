@@ -58,6 +58,8 @@ slip39c
 #### Startup Select
 If you run `slip39c` without arguments, a **Selection Modal** will appear letting you choose between Word and Binary input.
 
+![Selection Modal](doc/images/tui_input_mode_modal.png)
+
 You can also bypass the modal with CLI flags:
 
 ```bash
