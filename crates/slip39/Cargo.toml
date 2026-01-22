@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <you@example.com>"]
 description = "SLIP-39 wordlist encoder/decoder with interactive TUI"
-license = "MIT"
+license = { workspace = true }
 
 [dependencies]
 # TUI

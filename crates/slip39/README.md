@@ -22,26 +22,14 @@ A Rust library and interactive TUI for encoding/decoding [SLIP-39](https://githu
 
 ## Installation
 
-### Prerequisites
+Please refer to the [Workspace Development Guide](../../README.md#development) for instructions on building from source.
 
-- Rust 1.92.0 or later
-- [mise](https://mise.jdx.dev/) (recommended for version management)
+### Run Locally
 
-### Building from Source
+To run this tool specifically:
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/slip39-calculator.git
-cd slip39-calculator
-
-# Install Rust 1.92.0 with mise
-mise install
-
-# Build the project
-mise exec -- cargo build --release
-
-# Run tests
-mise exec -- cargo test
+cargo run -p slip39-calculator -- [ARGS]
 ```
 
 ## Usage
@@ -149,14 +137,14 @@ Example:
 ## Testing
 
 ```bash
-# Run all tests
-mise exec -- cargo test
+# Run tests for this crate
+cargo test -p slip39-calculator
 
 # Run unit tests only
-mise exec -- cargo test --lib
+cargo test -p slip39-calculator --lib
 
-# Verify wordlist against official SLIP-39 spec
-mise exec -- cargo test -- --ignored
+# Verify wordlist against official SLIP-39 spec (Slow)
+cargo test -p slip39-calculator -- --ignored
 ```
 
 ## Development
@@ -167,8 +155,8 @@ For detailed development documentation, including project structure, wordlist in
 
 Licensed under either of:
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](LICENSE-MIT))
+- Apache License, Version 2.0 ([LICENSE-APACHE](../../LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](../../LICENSE-MIT))
 
 at your option.
 
