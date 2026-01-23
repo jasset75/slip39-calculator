@@ -206,47 +206,61 @@ where
                                         app.input.push(c);
                                         app.update_suggestions();
                                     }
-                                    Some(InputMode::Generate) => {}
+                                    Some(InputMode::Generate) => {
+                                        // Input disabled in Generate mode
+                                    }
                                 }
                             }
                             KeyCode::Backspace => {
                                 // Always switch to input mode (deselect history) when editing
                                 app.saved_index = None;
 
-                                app.input.pop();
-                                match app.input_mode {
-                                    Some(InputMode::Word) | None => app.update_suggestions(),
-                                    _ => {}
+                                if app.input_mode == Some(InputMode::Generate) {
+                                    // Input disabled in Generate mode
+                                } else {
+                                    app.input.pop();
+                                    match app.input_mode {
+                                        Some(InputMode::Word) | None => app.update_suggestions(),
+                                        _ => {}
+                                    }
                                 }
                             }
 
                             // Carousel Navigation
                             KeyCode::Left => {
-                                // Switch to suggestion view
-                                app.saved_index = None;
+                                if app.input_mode == Some(InputMode::Generate) {
+                                    // Disabled in Generate mode
+                                } else {
+                                    // Switch to suggestion view
+                                    app.saved_index = None;
 
-                                if app.input_mode == Some(InputMode::Word)
-                                    && !app.suggestions.is_empty()
-                                {
-                                    if app.suggestion_index > 0 {
-                                        app.suggestion_index -= 1;
-                                    } else {
-                                        app.suggestion_index = app.suggestions.len() - 1;
-                                        // Wrap around
+                                    if app.input_mode == Some(InputMode::Word)
+                                        && !app.suggestions.is_empty()
+                                    {
+                                        if app.suggestion_index > 0 {
+                                            app.suggestion_index -= 1;
+                                        } else {
+                                            app.suggestion_index = app.suggestions.len() - 1;
+                                            // Wrap around
+                                        }
                                     }
                                 }
                             }
                             KeyCode::Right => {
-                                // Switch to suggestion view
-                                app.saved_index = None;
+                                if app.input_mode == Some(InputMode::Generate) {
+                                    // Disabled in Generate mode
+                                } else {
+                                    // Switch to suggestion view
+                                    app.saved_index = None;
 
-                                if app.input_mode == Some(InputMode::Word)
-                                    && !app.suggestions.is_empty()
-                                {
-                                    if app.suggestion_index < app.suggestions.len() - 1 {
-                                        app.suggestion_index += 1;
-                                    } else {
-                                        app.suggestion_index = 0; // Wrap around
+                                    if app.input_mode == Some(InputMode::Word)
+                                        && !app.suggestions.is_empty()
+                                    {
+                                        if app.suggestion_index < app.suggestions.len() - 1 {
+                                            app.suggestion_index += 1;
+                                        } else {
+                                            app.suggestion_index = 0; // Wrap around
+                                        }
                                     }
                                 }
                             }
@@ -292,6 +306,10 @@ where
                                         app.saved_words.push(word.to_string());
                                         app.saved_index = Some(app.saved_words.len() - 1);
                                         // Auto-scroll to it
+                                    } else if should_generate && app.saved_words.len() >= 20 {
+                                        // Limit reached, ensure we stay at the last element if we were previously reviewing
+                                        // or just do nothing if we were already "waiting"
+                                        app.saved_index = Some(app.saved_words.len() - 1);
                                     }
                                 } else if !app.saved_words.is_empty() {
                                     // Standard mode behavior
@@ -645,7 +663,7 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
     } else if app.paper_mode {
         "Word/> ".to_string()
     } else if app.input_mode == Some(InputMode::Generate) {
-        format!("Gen #{}/20> ", app.saved_words.len() + 1)
+        "Input Disabled".to_string()
     } else {
         format!("Word #{}/> ", app.saved_words.len() + 1)
     };
