@@ -4,3 +4,8 @@ lefthook = "latest"
 
 [tasks.install-hooks]
 run = "lefthook install"
+
+[tasks.install]
+description = "Install the slip39c CLI to the system"
+depends = ["install-hooks"]
+run = "cargo install --path crates/slip39"
