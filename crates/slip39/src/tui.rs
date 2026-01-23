@@ -18,6 +18,7 @@ use std::{error::Error, io};
 pub enum InputMode {
     Word,
     Binary,
+    Generate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -101,6 +102,10 @@ impl App {
                 }
             }
             Some(InputMode::Word) | None => self.suggestions.get(self.suggestion_index).cloned(),
+            Some(InputMode::Generate) => {
+                use slip39_calculator::get_random_word;
+                Some(get_random_word().to_string())
+            }
         };
 
         if let Some(word) = word_to_add {
@@ -162,10 +167,18 @@ where
                 match app.state {
                     AppState::Startup => match key.code {
                         KeyCode::Esc => return Ok(()),
-                        KeyCode::Left | KeyCode::Right => {
+                        KeyCode::Left => {
+                            app.modal_selection = match app.modal_selection {
+                                InputMode::Word => InputMode::Generate,
+                                InputMode::Binary => InputMode::Word,
+                                InputMode::Generate => InputMode::Binary,
+                            };
+                        }
+                        KeyCode::Right => {
                             app.modal_selection = match app.modal_selection {
                                 InputMode::Word => InputMode::Binary,
-                                InputMode::Binary => InputMode::Word,
+                                InputMode::Binary => InputMode::Generate,
+                                InputMode::Generate => InputMode::Word,
                             };
                         }
                         KeyCode::Enter => {
@@ -193,6 +206,7 @@ where
                                         app.input.push(c);
                                         app.update_suggestions();
                                     }
+                                    Some(InputMode::Generate) => {}
                                 }
                             }
                             KeyCode::Backspace => {
@@ -250,7 +264,37 @@ where
                                 }
                             }
                             KeyCode::Down => {
-                                if !app.saved_words.is_empty() {
+                                // Special handling for Generate mode
+                                if app.input_mode == Some(InputMode::Generate) {
+                                    // logic: if reviewing history, move down.
+                                    // if at bottom or not reviewing, generate new word (max 20)
+                                    // if max 20 reached, just go to end.
+
+                                    let mut should_generate = false;
+
+                                    if let Some(curr) = app.saved_index {
+                                        if curr < app.saved_words.len() - 1 {
+                                            app.saved_index = Some(curr + 1);
+                                        } else {
+                                            // At the last word
+                                            should_generate = true;
+                                            app.saved_index = None; // Stop highlighting to indicate "wait/ready" or keep highlighting last?
+                                                                    // Actually, better UX: move focus to "Generate" prompt (saved_index = None)
+                                        }
+                                    } else {
+                                        // Not reviewing anything, so we are at "generating position"
+                                        should_generate = true;
+                                    }
+
+                                    if should_generate && app.saved_words.len() < 20 {
+                                        use slip39_calculator::get_random_word;
+                                        let word = get_random_word();
+                                        app.saved_words.push(word.to_string());
+                                        app.saved_index = Some(app.saved_words.len() - 1);
+                                        // Auto-scroll to it
+                                    }
+                                } else if !app.saved_words.is_empty() {
+                                    // Standard mode behavior
                                     if let Some(curr) = app.saved_index {
                                         if curr < app.saved_words.len() - 1 {
                                             app.saved_index = Some(curr + 1);
@@ -324,6 +368,28 @@ fn render_carousel(f: &mut Frame, app: &App, area: Rect) {
             }
         } else {
             Span::raw("Enter 10 bits...")
+        };
+
+        let p = Paragraph::new(content)
+            .block(block)
+            .alignment(ratatui::layout::Alignment::Center);
+        f.render_widget(p, area);
+        return;
+    } else if app.input_mode == Some(InputMode::Generate) {
+        let block = Block::default().borders(Borders::ALL).title(" Generator ");
+
+        let content = if app.saved_words.len() >= 20 {
+            Span::styled(
+                "Limit reached (20 words). Press Esc to exit.",
+                Style::default().fg(Color::Yellow),
+            )
+        } else {
+            Span::styled(
+                "Press \u{2193} (Down) to generate next word",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )
         };
 
         let p = Paragraph::new(content)
@@ -578,6 +644,8 @@ fn render_input(f: &mut Frame, app: &App, area: Rect) {
         }
     } else if app.paper_mode {
         "Word/> ".to_string()
+    } else if app.input_mode == Some(InputMode::Generate) {
+        format!("Gen #{}/20> ", app.saved_words.len() + 1)
     } else {
         format!("Word #{}/> ", app.saved_words.len() + 1)
     };
@@ -654,11 +722,13 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
     let button_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(10),
-            Constraint::Percentage(35), // Word Button
-            Constraint::Percentage(10), // Gap
-            Constraint::Percentage(35), // Binary Button
-            Constraint::Percentage(10),
+            Constraint::Percentage(5),
+            Constraint::Percentage(26), // Word Button
+            Constraint::Percentage(6),  // Gap
+            Constraint::Percentage(26), // Binary Button
+            Constraint::Percentage(6),  // Gap
+            Constraint::Percentage(26), // Generate Button
+            Constraint::Percentage(5),
         ])
         .split(layout[1]);
 
@@ -699,6 +769,25 @@ fn render_modal(f: &mut Frame, app: &App, area: Rect) {
         .style(binary_style)
         .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(binary_btn, button_layout[3]);
+
+    // Generate Button
+    let gen_style = if app.modal_selection == InputMode::Generate {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Green) // Distinct color
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    };
+    let gen_btn = Paragraph::new("Generate")
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(gen_style),
+        )
+        .style(gen_style)
+        .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(gen_btn, button_layout[5]);
 
     // Help text
     let help = Paragraph::new("Use \u{2190}/\u{2192} to select, Enter to confirm")
