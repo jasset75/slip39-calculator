@@ -3,6 +3,7 @@
 //! This library provides functions to encode and decode SLIP-39 mnemonic words
 //! to/from their 10-bit binary representation.
 
+use rand::Rng;
 use std::sync::OnceLock;
 
 /// Errors that can occur during encoding/decoding
@@ -55,6 +56,18 @@ pub fn get_word_by_index(index: usize) -> Result<&'static str, Error> {
         .get(index)
         .copied()
         .ok_or(Error::IndexOutOfRange(index))
+}
+
+/// Get a random word from the wordlist using a CSPRNG
+///
+/// # Returns
+/// * `&str` - A random word from the 1024-word list
+pub fn get_random_word() -> &'static str {
+    let mut rng = rand::thread_rng();
+    let index = rng.gen_range(0..1024);
+    // We can safely unwrap here because we know the index is within range (0-1023)
+    // and the wordlist is guaranteed to be 1024 words by the test_wordlist_initialization test.
+    wordlist().get(index).copied().unwrap()
 }
 
 /// Find all words in the wordlist that start with the given prefix

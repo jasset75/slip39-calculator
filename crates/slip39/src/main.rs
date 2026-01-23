@@ -1,7 +1,7 @@
 mod tui;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use slip39_calculator::{decode, encode, wordlist};
+use slip39_calculator::{decode, encode, get_random_word, wordlist};
 use std::process;
 
 /// SLIP-39 wordlist encoder/decoder
@@ -82,6 +82,14 @@ enum Commands {
         #[arg(long, short)]
         prefix: bool,
     },
+
+    /// Generate random SLIP-39 words using a CSPRNG
+    #[command(name = "generate")]
+    Generate {
+        /// Number of words to generate
+        #[arg(long, short, default_value = "20")]
+        count: usize,
+    },
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -158,6 +166,18 @@ fn main() {
 
                     Ok(format!("{} -> {} -> {}", w, index, bits))
                 }),
+
+                Commands::Generate { count } => {
+                    let mut output = String::new();
+                    for i in 0..count {
+                        let word = get_random_word();
+                        if i > 0 {
+                            output.push('\n');
+                        }
+                        output.push_str(word);
+                    }
+                    Ok(output)
+                }
 
                 Commands::Tui { .. } => unreachable!(), // Handled above
             };

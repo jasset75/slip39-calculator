@@ -17,6 +17,9 @@ clap = { workspace = true }
 # Error handling
 thiserror = { workspace = true }
 
+# Random number generation
+rand = "0.8"
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
 sha2 = "0.10"
