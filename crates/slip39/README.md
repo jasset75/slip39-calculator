@@ -44,9 +44,10 @@ slip39c
 
 #### TUI Features
 
-- **Dual Input Modes**:
+- **Interactive Modes**:
   - **Word Mode** (Default): Type words to find their 10-bit binary index.
   - **Binary Mode**: Type 0s and 1s to find the corresponding word.
+  - **Generate Mode**: Generate random words using a cryptographically secure random number generator (CSPRNG).
 - **Incremental Search**: Filter 1024 words instantly as you type.
 - **Carousel Navigation**: Browse suggestion candidates horizontally with `Left`/`Right`.
 - **Memory Grid**: Visual representation of the 10-bit binary value (Cyan = 1, Gray = 0).
@@ -56,11 +57,11 @@ slip39c
   - **Paper Mode**: Red theme (warning: no history).
 
 #### Startup Select
-If you run `slip39c` without arguments, a **Selection Modal** will appear letting you choose between Word and Binary input.
+If you run `slip39c` without arguments, a **Selection Modal** will appear letting you choose between Word, Binary, or Generate input modes.
 
 ![Selection Modal](doc/images/tui_input_mode_modal.png)
 
-You can also bypass the modal with CLI flags:
+You can also bypass the modal with CLI flags (except for Generate mode):
 
 ```bash
 # Launch directly into Word Input Mode
@@ -77,7 +78,7 @@ slip39c --mode binary
 | `Type` | Filter suggestions (Word) / Enter bits (Binary) |
 | `Enter` | Select current suggestion / Decode binary |
 | `←` / `→` | Navigate suggestions / Mode Selection (Startup) |
-| `↑` / `↓` | Navigate saved words history |
+| `↑` / `↓` | Navigate saved words history / Generate new word (Generate Mode) |
 | `Esc` | Exit application |
 
 ### Security Features
@@ -90,6 +91,7 @@ The tool is designed to be safe for use in ephemeral environments (e.g., Tails O
     - Memory is released immediately upon exit (`Esc`).
     - **Paper Mode** (`--paper`): Explicitly clears the internal buffer before adding a new word, ensuring **zero history retention** even in RAM during the session. Useful for transcribing words one by one to physical paper.
 4.  **Terminal Hygiene**: Uses Alternate Screen buffers to ensure no sensitive words remain in your terminal's scrollback history after exit.
+5.  **CSPRNG**: Random word generation uses the operating system's entropy source via `rand::thread_rng` (ChaCha12 based CSPRNG), suitable for cryptographic operations.
 
 ### CLI Mode (Scripting)
 
@@ -110,6 +112,14 @@ slip39c encode-word academic
 # Decode binary to word
 slip39c decode-bits 0000000001
 # Output: acid
+
+# Generate random words (CSPRNG)
+slip39c generate --count 5
+# Output:
+# academic
+# acid
+# ...
+```
 
 # Get the index of a word (0-1023)
 slip39c word-to-index zero

@@ -58,7 +58,10 @@ pub fn get_word_by_index(index: usize) -> Result<&'static str, Error> {
         .ok_or(Error::IndexOutOfRange(index))
 }
 
-/// Get a random word from the wordlist using a CSPRNG
+/// Get a random word from the wordlist using os-seeded CSPRNG.
+///
+/// This function uses [`rand::thread_rng`], which is a cryptographically secure
+/// pseudo-random number generator (CSPRNG).
 ///
 /// # Returns
 /// * `&str` - A random word from the 1024-word list
