@@ -16,6 +16,11 @@
 - **Wordlist**: Loaded lazily via `std::sync::OnceLock`. Verified against official SHA256.
 
 ### TUI (`src/tui.rs`)
+- **Architecture**: Follows The [Elm Architecture](https://guide.elm-lang.org/architecture/) (Model-View-Update).
+    - **Model**: `App` struct. Holds all state (inputs, history, mode).
+    - **Update**: `update` function. Pure state transitions based on `Msg`.
+    - **View**: `ui` function. Renders `App` state to `Frame`.
+    - **Msg**: Enum representing all possible events (Key inputs, Logic events).
 - **Layout**: Suggestions (Carousel) -> Grid (Table) -> Input (Paragraph).
 - **Paper Mode**: Critical feature. Disables history/cache for security.
 - **Navigation**: `←/→` (Suggestions), `↑/↓` (History).
