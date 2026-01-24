@@ -25,6 +25,24 @@ pub enum InputMode {
 enum AppState {
     Startup,
     Running,
+    Finished, // Exiting
+}
+
+#[derive(Debug)]
+pub enum Msg {
+    // Navigation
+    Up,
+    Down,
+    Left,
+    Right,
+    Enter,
+    Esc,
+    // Input
+    Char(char),
+    Backspace,
+    // Internal (from logic)
+    // SelectMode(InputMode),
+    None,
 }
 
 /// TUI Application state
@@ -162,180 +180,165 @@ where
     loop {
         terminal.draw(|f| ui(f, app)).map_err(|e| e.into())?;
 
+        if app.state == AppState::Finished {
+            return Ok(());
+        }
+
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                match app.state {
-                    AppState::Startup => match key.code {
-                        KeyCode::Esc => return Ok(()),
-                        KeyCode::Left => {
-                            app.modal_selection = match app.modal_selection {
-                                InputMode::Word => InputMode::Generate,
-                                InputMode::Binary => InputMode::Word,
-                                InputMode::Generate => InputMode::Binary,
-                            };
+                let msg = match key.code {
+                    KeyCode::Esc => Msg::Esc,
+                    KeyCode::Up => Msg::Up,
+                    KeyCode::Down => Msg::Down,
+                    KeyCode::Left => Msg::Left,
+                    KeyCode::Right => Msg::Right,
+                    KeyCode::Enter => Msg::Enter,
+                    KeyCode::Char(c) => Msg::Char(c),
+                    KeyCode::Backspace => Msg::Backspace,
+                    _ => Msg::None,
+                };
+
+                update(app, msg);
+            }
+        }
+    }
+}
+
+fn update(app: &mut App, msg: Msg) {
+    match app.state {
+        AppState::Startup => match msg {
+            Msg::Esc => app.state = AppState::Finished,
+            Msg::Up | Msg::Left => {
+                app.modal_selection = match app.modal_selection {
+                    InputMode::Word => InputMode::Generate,
+                    InputMode::Binary => InputMode::Word,
+                    InputMode::Generate => InputMode::Binary,
+                };
+            }
+            Msg::Down | Msg::Right => {
+                app.modal_selection = match app.modal_selection {
+                    InputMode::Word => InputMode::Binary,
+                    InputMode::Binary => InputMode::Generate,
+                    InputMode::Generate => InputMode::Word,
+                };
+            }
+            Msg::Enter => {
+                app.input_mode = Some(app.modal_selection);
+                app.state = AppState::Running;
+            }
+            _ => {}
+        },
+        AppState::Running => match msg {
+            Msg::Esc => app.state = AppState::Finished,
+
+            // Input
+            Msg::Char(c) => {
+                // Always switch to input mode (deselect history) when typing
+                app.saved_index = None;
+                match app.input_mode {
+                    Some(InputMode::Binary) => {
+                        if (c == '0' || c == '1') && app.input.len() < 10 {
+                            app.input.push(c);
                         }
-                        KeyCode::Right => {
-                            app.modal_selection = match app.modal_selection {
-                                InputMode::Word => InputMode::Binary,
-                                InputMode::Binary => InputMode::Generate,
-                                InputMode::Generate => InputMode::Word,
-                            };
-                        }
-                        KeyCode::Enter => {
-                            app.input_mode = Some(app.modal_selection);
-                            app.state = AppState::Running;
-                        }
+                    }
+                    Some(InputMode::Word) | None => {
+                        app.input.push(c);
+                        app.update_suggestions();
+                    }
+                    Some(InputMode::Generate) => {}
+                }
+            }
+            Msg::Backspace => {
+                app.saved_index = None;
+                if app.input_mode == Some(InputMode::Generate) {
+                } else {
+                    app.input.pop();
+                    match app.input_mode {
+                        Some(InputMode::Word) | None => app.update_suggestions(),
                         _ => {}
-                    },
-                    AppState::Running => {
-                        match key.code {
-                            KeyCode::Esc => return Ok(()),
+                    }
+                }
+            }
 
-                            // Input handling
-                            KeyCode::Char(c) => {
-                                // Always switch to input mode (deselect history) when typing
-                                app.saved_index = None;
-
-                                match app.input_mode {
-                                    Some(InputMode::Binary) => {
-                                        if (c == '0' || c == '1') && app.input.len() < 10 {
-                                            app.input.push(c);
-                                        }
-                                    }
-                                    Some(InputMode::Word) | None => {
-                                        app.input.push(c);
-                                        app.update_suggestions();
-                                    }
-                                    Some(InputMode::Generate) => {
-                                        // Input disabled in Generate mode
-                                    }
-                                }
-                            }
-                            KeyCode::Backspace => {
-                                // Always switch to input mode (deselect history) when editing
-                                app.saved_index = None;
-
-                                if app.input_mode == Some(InputMode::Generate) {
-                                    // Input disabled in Generate mode
-                                } else {
-                                    app.input.pop();
-                                    match app.input_mode {
-                                        Some(InputMode::Word) | None => app.update_suggestions(),
-                                        _ => {}
-                                    }
-                                }
-                            }
-
-                            // Carousel Navigation
-                            KeyCode::Left => {
-                                if app.input_mode == Some(InputMode::Generate) {
-                                    // Disabled in Generate mode
-                                } else {
-                                    // Switch to suggestion view
-                                    app.saved_index = None;
-
-                                    if app.input_mode == Some(InputMode::Word)
-                                        && !app.suggestions.is_empty()
-                                    {
-                                        if app.suggestion_index > 0 {
-                                            app.suggestion_index -= 1;
-                                        } else {
-                                            app.suggestion_index = app.suggestions.len() - 1;
-                                            // Wrap around
-                                        }
-                                    }
-                                }
-                            }
-                            KeyCode::Right => {
-                                if app.input_mode == Some(InputMode::Generate) {
-                                    // Disabled in Generate mode
-                                } else {
-                                    // Switch to suggestion view
-                                    app.saved_index = None;
-
-                                    if app.input_mode == Some(InputMode::Word)
-                                        && !app.suggestions.is_empty()
-                                    {
-                                        if app.suggestion_index < app.suggestions.len() - 1 {
-                                            app.suggestion_index += 1;
-                                        } else {
-                                            app.suggestion_index = 0; // Wrap around
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Saved words Navigation
-                            KeyCode::Up => {
-                                if !app.saved_words.is_empty() {
-                                    if let Some(curr) = app.saved_index {
-                                        if curr > 0 {
-                                            app.saved_index = Some(curr - 1);
-                                        }
-                                    } else {
-                                        app.saved_index = Some(app.saved_words.len() - 1);
-                                    }
-                                }
-                            }
-                            KeyCode::Down => {
-                                // Special handling for Generate mode
-                                if app.input_mode == Some(InputMode::Generate) {
-                                    // logic: if reviewing history, move down.
-                                    // if at bottom or not reviewing, generate new word (max 20)
-                                    // if max 20 reached, just go to end.
-
-                                    let mut should_generate = false;
-
-                                    if let Some(curr) = app.saved_index {
-                                        if curr < app.saved_words.len() - 1 {
-                                            app.saved_index = Some(curr + 1);
-                                        } else {
-                                            // At the last word
-                                            should_generate = true;
-                                            app.saved_index = None; // Stop highlighting to indicate "wait/ready" or keep highlighting last?
-                                                                    // Actually, better UX: move focus to "Generate" prompt (saved_index = None)
-                                        }
-                                    } else {
-                                        // Not reviewing anything, so we are at "generating position"
-                                        should_generate = true;
-                                    }
-
-                                    if should_generate && app.saved_words.len() < 20 {
-                                        use slip39_calculator::get_random_word;
-                                        let word = get_random_word();
-                                        app.saved_words.push(word.to_string());
-                                        app.saved_index = Some(app.saved_words.len() - 1);
-                                        // Auto-scroll to it
-                                    } else if should_generate && app.saved_words.len() >= 20 {
-                                        // Limit reached, ensure we stay at the last element if we were previously reviewing
-                                        // or just do nothing if we were already "waiting"
-                                        app.saved_index = Some(app.saved_words.len() - 1);
-                                    }
-                                } else if !app.saved_words.is_empty() {
-                                    // Standard mode behavior
-                                    if let Some(curr) = app.saved_index {
-                                        if curr < app.saved_words.len() - 1 {
-                                            app.saved_index = Some(curr + 1);
-                                        } else {
-                                            app.saved_index = None; // Exit review mode
-                                        }
-                                    } else {
-                                        app.saved_index = Some(0);
-                                    }
-                                }
-                            }
-
-                            // Selection
-                            KeyCode::Enter => {
-                                app.add_current_word();
-                            }
-
-                            _ => {}
+            // Navigation
+            Msg::Left => {
+                if app.input_mode == Some(InputMode::Generate) {
+                } else {
+                    app.saved_index = None;
+                    if app.input_mode == Some(InputMode::Word) && !app.suggestions.is_empty() {
+                        if app.suggestion_index > 0 {
+                            app.suggestion_index -= 1;
+                        } else {
+                            app.suggestion_index = app.suggestions.len() - 1;
                         }
                     }
                 }
             }
-        }
+            Msg::Right => {
+                if app.input_mode == Some(InputMode::Generate) {
+                } else {
+                    app.saved_index = None;
+                    if app.input_mode == Some(InputMode::Word) && !app.suggestions.is_empty() {
+                        if app.suggestion_index < app.suggestions.len() - 1 {
+                            app.suggestion_index += 1;
+                        } else {
+                            app.suggestion_index = 0;
+                        }
+                    }
+                }
+            }
+            Msg::Up => {
+                if !app.saved_words.is_empty() {
+                    if let Some(curr) = app.saved_index {
+                        if curr > 0 {
+                            app.saved_index = Some(curr - 1);
+                        }
+                    } else {
+                        app.saved_index = Some(app.saved_words.len() - 1);
+                    }
+                }
+            }
+            Msg::Down => {
+                // Special handling for Generate mode
+                if app.input_mode == Some(InputMode::Generate) {
+                    let mut should_generate = false;
+                    if let Some(curr) = app.saved_index {
+                        if curr < app.saved_words.len() - 1 {
+                            app.saved_index = Some(curr + 1);
+                        } else {
+                            should_generate = true;
+                            app.saved_index = None;
+                        }
+                    } else {
+                        should_generate = true;
+                    }
+
+                    if should_generate && app.saved_words.len() < 20 {
+                        use slip39_calculator::get_random_word;
+                        let word = get_random_word();
+                        app.saved_words.push(word.to_string());
+                        app.saved_index = Some(app.saved_words.len() - 1);
+                    } else if should_generate && app.saved_words.len() >= 20 {
+                        app.saved_index = Some(app.saved_words.len() - 1);
+                    }
+                } else if !app.saved_words.is_empty() {
+                    if let Some(curr) = app.saved_index {
+                        if curr < app.saved_words.len() - 1 {
+                            app.saved_index = Some(curr + 1);
+                        } else {
+                            app.saved_index = None;
+                        }
+                    } else {
+                        app.saved_index = Some(0);
+                    }
+                }
+            }
+            Msg::Enter => {
+                app.add_current_word();
+            }
+            _ => {}
+        },
+        AppState::Finished => {}
     }
 }
 
